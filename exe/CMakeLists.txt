@@ -1,5 +1,3 @@
-# Generate source files from a template based on the project name.
-
 # Set C++ compile flags based on project settings.
 set(CMAKE_CXX_FLAGS ${${PROJECT_NAME_UPPER}_CXX_FLAGS})
 

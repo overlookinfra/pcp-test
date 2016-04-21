@@ -7,9 +7,7 @@ Gemfile.lock
 # Generated files
 /lib/inc/*/export.h
 /lib/inc/*/version.h
-/lib/Doxyfile
 /lib/html/
-/lib/docs/
 /debug*/
 /release*/
 /.idea/

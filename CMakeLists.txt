@@ -32,8 +32,20 @@ add_definitions(${LEATHERMAN_DEFINITIONS})
 ## Pull in helper macros for working with leatherman libraries
 include(leatherman)
 
+# Include our .cmake helpers
+list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
+
+# Prefer openssl from ports
+if ("${CMAKE_SYSTEM_NAME}" MATCHES "Darwin")
+    set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} /opt/local/lib)
+    set(CMAKE_INCLUDE_PATH ${CMAKE_INCLUDE_PATH} /opt/local/include)
+endif()
+
 # Add other dependencies
-find_package(Boost 1.54 REQUIRED COMPONENTS program_options)
+find_package(Boost 1.54 REQUIRED
+             COMPONENTS program_options filesystem chrono system date_time thread log regex random)
+find_package(OpenSSL REQUIRED)
+find_package(cpp-pcp-client REQUIRED)
 
 # Display a summary of the features
 include(FeatureSummary)

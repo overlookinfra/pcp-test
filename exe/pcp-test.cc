@@ -18,7 +18,7 @@ namespace po = boost::program_options;
 void help(po::options_description& desc)
 {
     boost::nowide::cout <<
-        "Synopsis\n"
+        "pcp-test - a framework for testing the pcp-broker\n"
         "========\n"
         "\n"
         "Example command-line utility.\n"

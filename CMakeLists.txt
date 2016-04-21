@@ -13,7 +13,9 @@ string(TOLOWER ${PROJECT_C_NAME} PROJECT_NAME_LOWER)
 # Common cmake setup
 if (NOT CMAKE_BUILD_TYPE)
     message(STATUS "Defaulting to a release build.")
-    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel." FORCE)
+    set(CMAKE_BUILD_TYPE "Release"
+        CACHE STRING "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel."
+        FORCE)
 endif()
 
 enable_testing()
@@ -25,7 +27,8 @@ find_package(Leatherman REQUIRED COMPONENTS ${LEATHERMAN_COMPONENTS})
 # Now that we have leatherman, we can pull in its options file, which
 # we need for finding all our other libraries.
 include(options)
-## Pull in common cflags setting from leatherman. Don't override CMAKE_CXX_FLAGS at the project root to avoid impacting 3rd party code.
+## Pull in common cflags setting from leatherman. Don't override CMAKE_CXX_FLAGS
+## at the project root to avoid impacting 3rd party code.
 include(cflags)
 set(${PROJECT_NAME_UPPER}_CXX_FLAGS "${LEATHERMAN_CXX_FLAGS}")
 add_definitions(${LEATHERMAN_DEFINITIONS})
@@ -49,4 +52,3 @@ enable_cpplint()
 
 add_cppcheck_dirs("${PROJECT_SOURCE_DIR}/lib" "${PROJECT_SOURCE_DIR}/exe")
 enable_cppcheck()
-

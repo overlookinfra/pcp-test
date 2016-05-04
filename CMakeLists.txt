@@ -18,7 +18,7 @@ endif()
 enable_testing()
 
 # Leatherman setup
-SET(LEATHERMAN_COMPONENTS locale catch nowide logging)
+set(LEATHERMAN_COMPONENTS locale catch nowide logging)
 find_package(Leatherman REQUIRED COMPONENTS ${LEATHERMAN_COMPONENTS})
 
 # Now that we have leatherman, we can pull in its options file, which
@@ -42,6 +42,8 @@ if ("${CMAKE_SYSTEM_NAME}" MATCHES "Darwin")
 endif()
 
 # Add other dependencies
+find_package(Leatherman REQUIRED
+             COMPONENTS locale nowide catch logging rapidjson json_container util file_util)
 find_package(Boost 1.54 REQUIRED
              COMPONENTS program_options filesystem chrono system date_time thread log regex random)
 find_package(OpenSSL REQUIRED)

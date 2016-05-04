@@ -1,0 +1,10 @@
+///
+/// @file
+/// Declares a macro for the root of the @PROJECT_NAME@ project directory tree.
+///
+#pragma once
+
+///
+/// The root of the @PROJECT_NAME@ project directory tree.
+///
+#define PCP_TEST_ROOT_PATH "@ROOT_PATH@"

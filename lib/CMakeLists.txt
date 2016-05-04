@@ -1,8 +1,14 @@
 include(leatherman)
 get_commit_string(PROJECT_COMMIT)
+set(TEMPLATE_DIR "${CMAKE_CURRENT_LIST_DIR}/templates")
+set(INCLUDES_DIR "${CMAKE_CURRENT_LIST_DIR}/inc/${PROJECT_NAME}")
 
 # Generate a file containing the version numbers.
-configure_file("version.h.in" "${CMAKE_CURRENT_LIST_DIR}/inc/${PROJECT_NAME}/version.h")
+configure_file("${TEMPLATE_DIR}/version.h.in" "${INCLUDES_DIR}/version.h")
+
+# Set the root path macro and expand related template
+set(ROOT_PATH ${PROJECT_SOURCE_DIR})
+configure_file("${TEMPLATE_DIR}/root_path.h.in" "${INCLUDES_DIR}/root_path.h")
 
 # Set C++ compile flags based on project settings.
 set(CMAKE_CXX_FLAGS ${${PROJECT_NAME_UPPER}_CXX_FLAGS})

@@ -5,12 +5,15 @@
 
 namespace pcp_test {
 
-    using namespace std;
+std::unordered_map<std::string, test_type> to_test_type {
+        {{"trivial", test_type::trivial},
+         {"none", test_type::none}}
+};
 
-    string version()
-    {
-        LOG_DEBUG("pcp-test version is %1%", PCP_TEST_VERSION_WITH_COMMIT);
-        return PCP_TEST_VERSION_WITH_COMMIT;
-    }
+std::string version()
+{
+    LOG_DEBUG("pcp-test version is %1%", PCP_TEST_VERSION_WITH_COMMIT);
+    return PCP_TEST_VERSION_WITH_COMMIT;
+}
 
-}  // pcp_test
+}  // namespace pcp_test

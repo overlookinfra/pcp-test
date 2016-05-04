@@ -17,9 +17,19 @@ set(CMAKE_CXX_FLAGS ${${PROJECT_NAME_UPPER}_CXX_FLAGS})
 leatherman_logging_namespace("puppetlabs.${PROJECT_NAME}")
 
 # Setup compiling the library.
-include_directories(inc ${Boost_INCLUDE_DIRS} ${LEATHERMAN_INCLUDE_DIRS})
+include_directories(inc
+    ${Boost_INCLUDE_DIRS}
+    ${LEATHERMAN_INCLUDE_DIRS}
+    ${cpp-pcp-client_INCLUDE_DIR}
+)
 
-set(PROJECT_SOURCES "src/${PROJECT_NAME}.cc")
+set(PROJECT_SOURCES
+    src/client.cc
+    src/pcp-test.cc
+    src/pcp_connector.cc
+    src/request.cc
+    src/test_trivial.cc
+)
 
 ## An object target is generated that can be used by both the library and test
 ## executable targets.

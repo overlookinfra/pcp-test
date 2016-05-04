@@ -16,3 +16,13 @@ A framework for creating and executing performance tests on a PCP broker.
     cmake ..
     make -j
 ```
+
+## Maintenance
+
+Maintainers: Alessandro Parisi <alessandro@puppet.com>, Michael Smith
+<michael.smith@puppet.com>, Michal Ruzicka <michal.ruzicka@puppet.com>.
+
+Contributing: Please refer to [this](CONTRIBUTING.md) document.
+
+Tickets: File bug tickets at https://tickets.puppet.com/browse/PCP and add the
+`pcp-test` component to the ticket.

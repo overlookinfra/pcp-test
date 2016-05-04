@@ -30,10 +30,12 @@ set_target_properties(libprojectsrc PROPERTIES POSITION_INDEPENDENT_CODE true)
 add_library(lib${PROJECT_NAME} $<TARGET_OBJECTS:libprojectsrc>)
 set_target_properties(lib${PROJECT_NAME}
     PROPERTIES
-    VERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}")
+    VERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}"
+)
 target_link_libraries(lib${PROJECT_NAME}
     ${LEATHERMAN_LIBRARIES}
     ${Boost_LIBRARIES}
+    ${cpp-pcp-client_LIBRARY}
 )
 
 symbol_exports(lib${PROJECT_NAME} "${CMAKE_CURRENT_LIST_DIR}/inc/${PROJECT_NAME}/export.h")

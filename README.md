@@ -7,7 +7,7 @@ A framework for creating and executing performance tests on a PCP broker.
  - [cmake](https://cmake.org)
  - [Boost](http://boost.org)
  - [Leatherman](https://github.com/puppetlabs/leatherman)
- - [pcp-client](https://github.com/puppetlabs/pcp-client)
+ - [cpp-pcp-client](https://github.com/puppetlabs/cpp-pcp-client)
 
 ## Build pcp-test
 

@@ -31,6 +31,8 @@ set(${PROJECT_NAME_UPPER}_CXX_FLAGS "${LEATHERMAN_CXX_FLAGS}")
 add_definitions(${LEATHERMAN_DEFINITIONS})
 ## Pull in helper macros for working with leatherman libraries
 include(leatherman)
+## Log line numbers
+leatherman_logging_line_numbers()
 
 # Include our .cmake helpers
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)

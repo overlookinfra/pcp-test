@@ -16,3 +16,6 @@ acceptance/.bundle/
 acceptance/vendor/
 acceptance/junit/
 acceptance/log/
+
+# Development resources (SSL certs, configuration files, etc.)
+/dev-resources/

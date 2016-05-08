@@ -17,7 +17,7 @@ namespace fs = boost::filesystem;
 void run_trivial_test()
 {
     auto root_path  = fs::path(PCP_TEST_ROOT_PATH);
-    auto certs_path = root_path / "dev-resources/ssl";
+    auto certs_path = root_path / "test-resources/ssl";
 
     LOG_INFO("Hello! About to start a trivial test!");
 
@@ -28,9 +28,9 @@ void run_trivial_test()
         };
 
     client_configuration c {"wss://broker.example.com:8142/pcp/",
-                            get_path("ca/ca_crt.pem"),
-                            get_path("certs/client04.example.com.pem"),
-                            get_path("private_keys/client04.example.com.pem"),
+                            get_path("ca_crt.pem"),
+                            get_path("0004agent.example.com_crt.pem"),
+                            get_path("0004agent.example.com_key.pem"),
                             "test_client",
                             100};
 

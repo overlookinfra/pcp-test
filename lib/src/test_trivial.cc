@@ -5,6 +5,8 @@
 
 #include <pcp-test/root_path.h>
 
+#include <cpp-pcp-client/connector/errors.hpp>
+
 #include <leatherman/logging/logging.hpp>
 
 #include <boost/filesystem/operations.hpp>
@@ -35,7 +37,14 @@ void run_trivial_test()
                             100};
 
     client trivial_client {c};
-    trivial_client.connector.connect(3);
+
+    try {
+        trivial_client.connector.connect(3);
+    } catch (const PCPClient::connection_error& e) {
+        LOG_DEBUG("Failed to connect: %1%", e.what());
+        throw fatal_error {"failed to establish the WebSocket connection"};
+    }
+
     LOG_INFO("We should be associated with %1% at this point!", c.broker_ws_uri);
     if (!trivial_client.connector.isAssociated())
         throw fatal_error {"failed to associate"};

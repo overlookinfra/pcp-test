@@ -14,4 +14,4 @@ target_link_libraries(${PROJECT_NAME}_test
     ${cpp-pcp-client_LIBRARY}
 )
 
-add_test(NAME "unit_tests" COMMAND lib${PROJECT_NAME}_test)
+add_test(NAME "unit_tests" COMMAND ${PROJECT_NAME}_test)

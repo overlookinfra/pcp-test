@@ -2,7 +2,7 @@
 set -ev
 
 # Set compiler to GCC 4.8 here, as Travis overrides the global variables.
-export CC=gcc-4.8 CXX=g++-4.8
+export CC=gcc-5 CXX=g++-5
 
 if [ ${TRAVIS_TARGET} == CPPCHECK ]; then
   # grab a pre-built cppcheck from s3

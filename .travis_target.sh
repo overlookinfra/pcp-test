@@ -10,14 +10,18 @@ if [ ${TRAVIS_TARGET} == CPPCHECK ]; then
   tar xjvf pcre-8.36_install.tar.bz2 --strip 1 -C $USERDIR
   wget https://s3.amazonaws.com/kylo-pl-bucket/cppcheck-1.69_install.tar.bz2
   tar xjvf cppcheck-1.69_install.tar.bz2 --strip 1 -C $USERDIR
-elif [ ${TRAVIS_TARGET} == DOXYGEN ]; then
-  # grab a pre-built doxygen 1.8.7 from s3
-  wget https://s3.amazonaws.com/kylo-pl-bucket/doxygen_install.tar.bz2
-  tar xjvf doxygen_install.tar.bz2 --strip 1 -C $USERDIR
 elif [ ${TRAVIS_TARGET} == DEBUG ]; then
   # Install coveralls.io update utility
   pip install --user cpp-coveralls
 fi
+
+# Install cpp-pcp-client
+git clone https://github.com/puppetlabs/cpp-pcp-client
+cd cpp-pcp-client
+git checkout $CPP_PCP_CLIENT_VERSION
+cmake -DCMAKE_INSTALL_PREFIX=$USERDIR .
+make install -j2
+cd ..
 
 # Generate build files
 if [ ${TRAVIS_TARGET} == DEBUG ]; then
@@ -27,11 +31,6 @@ cmake $TARGET_OPTS -DCMAKE_INSTALL_PREFIX=$USERDIR .
 
 if [ ${TRAVIS_TARGET} == CPPLINT ]; then
   make cpplint
-elif [ ${TRAVIS_TARGET} == DOXYGEN ]; then
-  # Build docs
-  pushd lib
-  doxygen 2>&1 | ( ! grep . )
-  popd
 elif [ ${TRAVIS_TARGET} == CPPCHECK ]; then
   make cppcheck
 else
@@ -47,4 +46,3 @@ else
     coveralls --gcov gcov-4.8 --gcov-options '\-lp' >/dev/null || true
   fi
 fi
-

@@ -16,6 +16,3 @@ pcp_connector::pcp_connector(const client_configuration& cfg)
 }
 
 }  // namespace pcp_test
-
-
-

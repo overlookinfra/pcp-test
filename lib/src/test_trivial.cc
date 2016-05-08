@@ -27,14 +27,14 @@ void run_trivial_test()
           return (certs_path / s).string();
         };
 
-    pcp_test::client_configuration c {"wss://broker.example.com:8142/pcp/",
-                                      get_path("ca/ca_crt.pem"),
-                                      get_path("certs/client04.example.com.pem"),
-                                      get_path("private_keys/client04.example.com.pem"),
-                                      "test_client",
-                                      100};
+    client_configuration c {"wss://broker.example.com:8142/pcp/",
+                            get_path("ca/ca_crt.pem"),
+                            get_path("certs/client04.example.com.pem"),
+                            get_path("private_keys/client04.example.com.pem"),
+                            "test_client",
+                            100};
 
-    pcp_test::client trivial_client {c};
+    client trivial_client {c};
     trivial_client.connector.connect(3);
     LOG_INFO("We should be associated with %1% at this point!", c.broker_ws_uri);
     if (!trivial_client.connector.isAssociated())

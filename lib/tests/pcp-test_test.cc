@@ -5,6 +5,8 @@
 #include <pcp-test/client.hpp>
 #include <pcp-test/client_configuration.hpp>
 
+#include <utility>
+
 SCENARIO("version() returns the version", "[main]")
 {
     REQUIRE(pcp_test::version() == PCP_TEST_VERSION_WITH_COMMIT);
@@ -18,5 +20,5 @@ SCENARIO("client ctor", "[main]")
                                       "/tmp/key.pem",
                                       "test_client",
                                       100};
-    REQUIRE_NOTHROW(pcp_test::client {c});
+    REQUIRE_NOTHROW(pcp_test::client {std::move(c)});
 }

@@ -23,6 +23,5 @@ leatherman_install(${PROJECT_NAME})
 # Tests for the executable. These don't verify behavior, simply that the executable runs
 # without crashing or generating an error. Useful, but should be enhanced with test scripts
 # and/or acceptance tests.
-add_test(NAME "smoke_test" COMMAND ${PROJECT_NAME})
 add_test(NAME "help_test" COMMAND ${PROJECT_NAME} --help)
 add_test(NAME "version_test" COMMAND ${PROJECT_NAME} --version)

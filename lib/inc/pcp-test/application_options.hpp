@@ -12,9 +12,10 @@ namespace pcp_test {
 
 struct application_options
 {
-    bool debug;             // log debug information
-    std::string test;       // the test that will be executed
-    std::string logfile;    // path to the log file
+    bool debug;                 // log debug information
+    std::string test;           // the test that will be executed
+    std::string logfile;        // path to the log file
+    std::string configfile;     // path to the configuration file
 };
 
 }  // namespace pcp_test

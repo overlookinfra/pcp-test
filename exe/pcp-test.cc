@@ -105,6 +105,10 @@ application_options get_application_options(int argc, char** argv)
              po::value<std::string>()->default_value(
                      "/var/log/puppetlabs/pcp-test/pcp-test.log"),
              "log file")
+             ("config-file",
+              po::value<std::string>()->default_value(
+                      "/etc/puppetlabs/pcp-test/pcp-test.conf"),
+              "configuration file")
             ("version,v", "print the version and exit")
             ("test",
              po::value<std::string>()->default_value("none"),
@@ -140,8 +144,9 @@ application_options get_application_options(int argc, char** argv)
             exit(EXIT_SUCCESS);
         }
 
-        a_o.logfile = vm["logfile"].as<std::string>();
-        a_o.test    = vm["test"].as<std::string>();
+        a_o.logfile    = vm["logfile"].as<std::string>();
+        a_o.test       = vm["test"].as<std::string>();
+        a_o.configfile = vm["config-file"].as<std::string>();
     } catch (const std::exception &ex) {
         print_error(ex.what());
         exit(EXIT_FAILURE);
@@ -164,6 +169,11 @@ void process_and_validate_application_options(application_options& a_o)
     auto log_file_parent_dir = (fs::path {a_o.logfile}).parent_path();
     if (!fs::exists(log_file_parent_dir)) {
         print_error("log directory does not exist");
+        exit(EXIT_FAILURE);
+    }
+
+    if (!fs::exists(a_o.configfile)) {
+        print_error("configuration file does not exist");
         exit(EXIT_FAILURE);
     }
 }

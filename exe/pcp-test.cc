@@ -102,7 +102,8 @@ application_options get_application_options(int argc, char** argv)
              po::bool_switch(&a_o.debug)->default_value(false),
              "Set logging level to debug")
             ("logfile",
-             po::value<std::string>()->default_value("/tmp/pcp-test.log"),
+             po::value<std::string>()->default_value(
+                     "/var/log/puppetlabs/pcp-test/pcp-test.log"),
              "log file")
             ("version,v", "print the version and exit")
             ("test",

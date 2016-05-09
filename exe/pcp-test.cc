@@ -8,9 +8,14 @@
 #include <leatherman/logging/logging.hpp>
 #include <leatherman/file_util/file.hpp>
 
+#include <boost/filesystem/operations.hpp>
+#include <boost/filesystem/path.hpp>
+
 #include <boost/nowide/fstream.hpp>
 #include <boost/nowide/iostream.hpp>
 #include <boost/nowide/args.hpp>
+
+#include <boost/format.hpp>
 
 // boost includes are not always warning-clean. Disable warnings that
 // cause problems before including the headers, then re-enable the warnings.
@@ -25,6 +30,7 @@ namespace lth_log  = leatherman::logging;
 namespace lth_file = leatherman::file_util;
 namespace lth_loc  = leatherman::locale;
 namespace po       = boost::program_options;
+namespace fs       = boost::filesystem;
 
 const std::string DEFAULT_CONFIGURATION_PATH {""};
 
@@ -77,6 +83,13 @@ void setup_logging(const std::string& logfile_, bool debug_)
     LOG_DEBUG("Logging configured");
 }
 
+void print_error(const std::string& err_msg)
+{
+    lth_log::colorize(boost::nowide::cerr, lth_log::log_level::error);
+    boost::nowide::cerr << "Error: " << err_msg << "\n" << std::endl;
+    lth_log::colorize(boost::nowide::cerr);
+}
+
 application_options get_application_options(int argc, char** argv)
 {
     application_options a_o {};
@@ -116,9 +129,7 @@ application_options get_application_options(int argc, char** argv)
 
             po::notify(vm);
         } catch (const std::exception &ex) {
-            lth_log::colorize(boost::nowide::cerr, lth_log::log_level::error);
-            boost::nowide::cerr << "error: " << ex.what() << "\n" << std::endl;
-            lth_log::colorize(boost::nowide::cerr);
+            print_error(ex.what());
             help(c_l_options);
             exit(EXIT_FAILURE);
         }
@@ -130,12 +141,8 @@ application_options get_application_options(int argc, char** argv)
 
         a_o.logfile = vm["logfile"].as<std::string>();
         a_o.test    = vm["test"].as<std::string>();
-
     } catch (const std::exception &ex) {
-        colorize(boost::nowide::cerr, lth_log::log_level::fatal);
-        boost::nowide::cerr << "unhandled exception: " << ex.what()
-        << "\n" << std::endl;
-        lth_log::colorize(boost::nowide::cerr);
+        print_error(ex.what());
         exit(EXIT_FAILURE);
     }
 
@@ -145,20 +152,17 @@ application_options get_application_options(int argc, char** argv)
 void process_and_validate_application_options(application_options& a_o)
 {
     auto t_type_itr = to_test_type.find(a_o.test);
-    std::string err_msg {};
-
     if (t_type_itr ==  to_test_type.end()) {
-        err_msg = "Unknown test type: ";
-        err_msg += a_o.test;
+        print_error((boost::format("unknown test type (%1%)") % a_o.test).str());
+        exit(EXIT_FAILURE);
     } else if (t_type_itr->second == test_type::none) {
-        err_msg =  "The test type argument must be specified";
+        print_error("the test type argument must be specified");
+        exit(EXIT_FAILURE);
     }
 
-    if (!err_msg.empty()) {
-        lth_log::colorize(boost::nowide::cerr, lth_log::log_level::error);
-        boost::nowide::cerr << err_msg << "\n" << std::endl;
-        lth_log::colorize(boost::nowide::cerr);
-        lth_log::colorize(boost::nowide::cerr);
+    auto log_file_parent_dir = (fs::path {a_o.logfile}).parent_path();
+    if (!fs::exists(log_file_parent_dir)) {
+        print_error("log directory does not exist");
         exit(EXIT_FAILURE);
     }
 }

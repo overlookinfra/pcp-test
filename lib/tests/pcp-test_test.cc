@@ -31,8 +31,8 @@ SCENARIO("client ctor", "[main]")
 {
     pcp_test::client_configuration c {"wss://localhost:8142",
                                       get_path("ca_crt.pem"),
-                                      get_path("0007agent.example.com_crt.pem"),
-                                      get_path("0007agent.example.com_key.pem"),
+                                      get_path("test/0007agent.example.com_crt.pem"),
+                                      get_path("test/0007agent.example.com_key.pem"),
                                       "test_client",
                                       100};
     REQUIRE_NOTHROW(pcp_test::client {std::move(c)});

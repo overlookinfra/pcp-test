@@ -15,7 +15,7 @@
 
 namespace fs = boost::filesystem;
 
-SCENARIO("version() returns the version", "[main]")
+SCENARIO("version() returns the version", "[configuration]")
 {
     REQUIRE(pcp_test::version() == PCP_TEST_VERSION_WITH_COMMIT);
 }
@@ -27,7 +27,7 @@ std::string get_path(std::string&& s)
     return (certs_path / s).string();
 }
 
-SCENARIO("client ctor", "[main]")
+SCENARIO("client ctor", "[configuration]")
 {
     pcp_test::client_configuration c {"wss://localhost:8142",
                                       get_path("ca_crt.pem"),

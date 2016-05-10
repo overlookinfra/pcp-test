@@ -22,6 +22,8 @@
 #include <boost/program_options.hpp>
 #pragma GCC diagnostic pop
 
+#include <map>
+
 namespace pcp_test {
 namespace configuration {
 
@@ -34,6 +36,7 @@ namespace fs       = boost::filesystem;
 
 const std::string DEFAULT_CONFIGFILE {"/etc/puppetlabs/pcp-test/pcp-test.conf"};
 const std::string DEFAULT_LOGFILE {"/var/log/puppetlabs/pcp-test/pcp-test.log"};
+const std::string DEFAULT_LOGLEVEL_TEXT {"info"};
 
 void help(po::options_description &desc)
 {
@@ -61,22 +64,22 @@ void help(po::options_description &desc)
 
 static boost::nowide::ofstream f_stream {};
 
-void setup_logging(const std::string& logfile_, bool debug_)
+static const std::map<std::string, lth_log::log_level> option_to_log_level {
+        { "none",    lth_log::log_level::none },
+        { "trace",   lth_log::log_level::trace },
+        { "debug",   lth_log::log_level::debug },
+        { "info",    lth_log::log_level::info },
+        { "warning", lth_log::log_level::warning },
+        { "error",   lth_log::log_level::error },
+        { "fatal",   lth_log::log_level::fatal }};
+
+void setup_logging(const std::string& logfile_, const std::string& loglevel_)
 {
-    lth_log::log_level lvl = lth_log::log_level::info;
-    if (debug_)
-        lvl = lth_log::log_level::trace;
-
+    assert(!logfile_.empty());
+    auto lvl = option_to_log_level.at(loglevel_);
     std::ostream* o_stream {nullptr};
-
-    if (!logfile_.empty()) {
-        auto logfile = lth_file::tilde_expand(logfile_);
-        f_stream.open(logfile.c_str(), std::ios_base::app);
-        o_stream = &f_stream;
-    } else {
-        o_stream = &boost::nowide::cout;
-    }
-
+    f_stream.open(logfile_.c_str(), std::ios_base::app);
+    o_stream = &f_stream;
     PCPClient::Util::setupLogging(*o_stream, true, lvl);
     lth_log::setup_logging(*o_stream);
     lth_log::set_colorization(true);
@@ -103,12 +106,11 @@ application_options get_application_options(int argc, char** argv)
     po::options_description c_l_options {""};
 
     try {
-        // TODO(ale): use log levels instead of debug switch
         c_l_options.add_options()
                 ("help,h", "produce help message")
-                ("debug",
-                 po::bool_switch(&a_o.debug)->default_value(false),
-                 "Set logging level to debug")
+                ("loglevel",
+                 po::value<std::string>()->default_value(""),
+                 "log level (none, trace, debug, info, warning, error, fatal)")
                 ("logfile",
                  po::value<std::string>()->default_value(""),
                  "log file")
@@ -151,6 +153,7 @@ application_options get_application_options(int argc, char** argv)
         }
 
         a_o.logfile    = vm["logfile"].as<std::string>();
+        a_o.loglevel   = vm["loglevel"].as<std::string>();
         a_o.test       = vm["test"].as<std::string>();
         a_o.configfile = vm["config-file"].as<std::string>();
     } catch (const std::exception &ex) {
@@ -171,8 +174,7 @@ void validate_test_type(application_options& a_o)
     }
 }
 
-void parse_configfile_and_process_options(application_options& a_o)
-{
+void parse_configfile_and_process_options(application_options& a_o) {
     if (a_o.configfile.empty())
         a_o.configfile = DEFAULT_CONFIGFILE;
 
@@ -188,17 +190,16 @@ void parse_configfile_and_process_options(application_options& a_o)
 
     try {
         config_json = lth_jc::JsonContainer(lth_file::read(a_o.configfile));
-    } catch (lth_jc::data_parse_error& e) {
-        print_error_and_exit("failed to parse the configuration file; invalid JSON");
+    } catch (lth_jc::data_parse_error &e) {
+        print_error_and_exit("failed to parse the configuration file; "
+                             "invalid JSON");
     }
 
     if (config_json.type() != lth_jc::DataType::Object)
         print_error_and_exit("invalid configuration file; root element is not "
-                                     "a JSON object");
+                             "a JSON object");
 
-    // TODO(ale): parse the log level
-
-    for (const auto& key: config_json.keys())
+    for (const auto &key: config_json.keys())
         if (!application_options::exists(key))
             print_error_and_exit((boost::format("unknown option (%1%)")
                                   % key).str());
@@ -212,15 +213,25 @@ void parse_configfile_and_process_options(application_options& a_o)
     }
 
     a_o.logfile = lth_file::tilde_expand(a_o.logfile);
+
+    if (a_o.loglevel.empty()) {
+        if (config_json.includes("loglevel")) {
+            a_o.loglevel = config_json.get<std::string>("loglevel");
+        } else {
+            a_o.loglevel = DEFAULT_LOGLEVEL_TEXT;
+        }
+    }
 }
 
 void validate_application_options(application_options& a_o)
 {
     auto log_file_parent_dir = (fs::path {a_o.logfile}).parent_path();
-    if (!fs::exists(log_file_parent_dir)) {
-        print_error("log directory does not exist");
-        exit(EXIT_FAILURE);
-    }
+    if (!fs::exists(log_file_parent_dir))
+        print_error_and_exit("log directory does not exist");
+
+    if (option_to_log_level.find(a_o.loglevel) == option_to_log_level.end())
+        print_error_and_exit((boost::format("invalid log level (%1%)")
+                              % a_o.loglevel).str());
 }
 
 }  // namespace configuration

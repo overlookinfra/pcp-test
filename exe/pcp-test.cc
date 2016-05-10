@@ -26,7 +26,7 @@ int main(int argc, char **argv)
     configuration::validate_test_type(a_o);
     configuration::parse_configfile_and_process_options(a_o);
     configuration::validate_application_options(a_o);
-    configuration::setup_logging(a_o.logfile, a_o.debug);
+    configuration::setup_logging(a_o.logfile, a_o.loglevel);
 
     try {
         start(a_o);

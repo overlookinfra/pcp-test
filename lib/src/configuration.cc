@@ -91,64 +91,68 @@ void setup_logging(const std::string& logfile_, const std::string& loglevel_)
 application_options get_application_options(int argc, char** argv)
 {
     application_options a_o {};
-    po::options_description c_l_options {""};
+    po::options_description visible_options {"visible command line options"};
+    visible_options.add_options()
+            ("help,h", "produce help message")
+            ("loglevel",
+             po::value<std::string>()->default_value(""),
+             "log level (none, trace, debug, info, warning, error, fatal)")
+            ("logfile",
+             po::value<std::string>()->default_value(""),
+             "log file")
+            ("config-file",
+             po::value<std::string>()->default_value(""),
+             "configuration file")
+            ("version,v", "print the version and exit");
+
+    po::positional_options_description positional_options {};
+    positional_options.add("test", 1);
+
+    // To avoid listing the <test_type> argument as a named option
+    po::options_description hidden_options {"hidden options"};
+    hidden_options.add_options()
+            ("test",
+             po::value<std::string>()->default_value("none"),
+             "test type to be executed");
+
+    // Merge the above groups
+    po::options_description c_l_options {"all command line options"};
+    c_l_options.add(visible_options)
+               .add(hidden_options);
+
+    po::variables_map vm{};
 
     try {
-        c_l_options.add_options()
-                ("help,h", "produce help message")
-                ("loglevel",
-                 po::value<std::string>()->default_value(""),
-                 "log level (none, trace, debug, info, warning, error, fatal)")
-                ("logfile",
-                 po::value<std::string>()->default_value(""),
-                 "log file")
-                ("config-file",
-                 po::value<std::string>()->default_value(""),
-                 "configuration file")
-                ("version,v", "print the version and exit")
-                ("test",
-                 po::value<std::string>()->default_value("none"),
-                 "test type to be executed");
+        po::store(
+                po::command_line_parser(argc, argv)
+                        .options(c_l_options)
+                        .positional(positional_options)
+                        .run(),
+                vm);
 
-        po::positional_options_description c_l_positional_options {};
-        c_l_positional_options.add("test", 1);
-
-        po::variables_map vm{};
-
-        try {
-            po::store(
-                    po::command_line_parser(argc, argv)
-                            .options(c_l_options)
-                            .positional(c_l_positional_options)
-                            .run(),
-                    vm);
-
-            if (vm.count("help")) {
-                help(c_l_options);
-                exit(EXIT_SUCCESS);
-            }
-
-            po::notify(vm);
-        } catch (const std::exception &ex) {
-            lth_log::colorize(boost::nowide::cerr, lth_log::log_level::error);
-            boost::nowide::cerr << "Error: " << ex.what() << "\n" << std::endl;
-            lth_log::colorize(boost::nowide::cerr);
-            help(c_l_options);
-            exit(EXIT_FAILURE);
-        }
-
-        if (vm.count("version")) {
-            boost::nowide::cout << pcp_test::version() << std::endl;
+        if (vm.count("help")) {
+            help(visible_options);
             exit(EXIT_SUCCESS);
         }
 
-        a_o.logfile    = vm["logfile"].as<std::string>();
-        a_o.loglevel   = vm["loglevel"].as<std::string>();
-        a_o.test       = vm["test"].as<std::string>();
-        a_o.configfile = vm["config-file"].as<std::string>();
+        po::notify(vm);
     } catch (const std::exception &ex) {
-        throw configuration_error(ex.what());
+        lth_log::colorize(boost::nowide::cerr, lth_log::log_level::error);
+        boost::nowide::cerr << "Error: " << ex.what() << "\n" << std::endl;
+        lth_log::colorize(boost::nowide::cerr);
+        help(c_l_options);
+        exit(EXIT_FAILURE);
     }
+
+    if (vm.count("version")) {
+        boost::nowide::cout << pcp_test::version() << std::endl;
+        exit(EXIT_SUCCESS);
+    }
+
+    a_o.logfile    = vm["logfile"].as<std::string>();
+    a_o.loglevel   = vm["loglevel"].as<std::string>();
+    a_o.test       = vm["test"].as<std::string>();
+    a_o.configfile = vm["config-file"].as<std::string>();
 
     return a_o;
 }
@@ -189,7 +193,7 @@ void parse_configfile_and_process_options(application_options& a_o) {
         throw configuration_error("invalid configuration file; root element "
                                   "is not a JSON object");
 
-    for (const auto &key: config_json.keys())
+    for (const auto &key : config_json.keys())
         if (!application_options::exists(key))
             throw configuration_error((boost::format("unknown option (%1%)")
                                       % key).str());

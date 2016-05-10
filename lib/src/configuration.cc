@@ -136,12 +136,8 @@ application_options get_application_options(int argc, char** argv)
         }
 
         po::notify(vm);
-    } catch (const std::exception &ex) {
-        lth_log::colorize(boost::nowide::cerr, lth_log::log_level::error);
-        boost::nowide::cerr << "Error: " << ex.what() << "\n" << std::endl;
-        lth_log::colorize(boost::nowide::cerr);
-        help(c_l_options);
-        exit(EXIT_FAILURE);
+    } catch (const std::exception &e) {
+        throw configuration_error(e.what());
     }
 
     if (vm.count("version")) {

@@ -14,7 +14,7 @@
 
 namespace pcp_test {
 
-namespace lth_log  = leatherman::logging;
+namespace lth_log = leatherman::logging;
 
 void start(const application_options& a_o)
 {

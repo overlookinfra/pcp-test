@@ -6,7 +6,7 @@
 #pragma once
 
 #include <string>
-#include <vector>
+#include <set>
 
 namespace pcp_test {
 
@@ -16,6 +16,14 @@ struct application_options
     std::string test;           // the test that will be executed
     std::string logfile;        // path to the log file
     std::string configfile;     // path to the configuration file
+
+    static bool exists(const std::string& option_name)
+    {
+        static std::set<std::string> option_names {"debug",
+                                                   "logfile",
+                                                   "configfile"};
+        return (option_names.find(option_name) != option_names.end());
+    }
 };
 
 }  // namespace pcp_test

@@ -1,5 +1,6 @@
 #include <pcp-test/configuration.hpp>
 #include <pcp-test/pcp-test.hpp>
+#include <pcp-test/errors.hpp>
 
 #include <cpp-pcp-client/util/logging.hpp>
 
@@ -87,19 +88,6 @@ void setup_logging(const std::string& logfile_, const std::string& loglevel_)
     LOG_DEBUG("Logging configured");
 }
 
-void print_error(const std::string& err_msg)
-{
-    lth_log::colorize(boost::nowide::cerr, lth_log::log_level::error);
-    boost::nowide::cerr << "Error: " << err_msg << "\n" << std::endl;
-    lth_log::colorize(boost::nowide::cerr);
-}
-
-void print_error_and_exit(const std::string& err_msg)
-{
-    print_error(err_msg);
-    exit(EXIT_FAILURE);
-}
-
 application_options get_application_options(int argc, char** argv)
 {
     application_options a_o {};
@@ -142,7 +130,9 @@ application_options get_application_options(int argc, char** argv)
 
             po::notify(vm);
         } catch (const std::exception &ex) {
-            print_error(ex.what());
+            lth_log::colorize(boost::nowide::cerr, lth_log::log_level::error);
+            boost::nowide::cerr << "Error: " << ex.what() << "\n" << std::endl;
+            lth_log::colorize(boost::nowide::cerr);
             help(c_l_options);
             exit(EXIT_FAILURE);
         }
@@ -157,7 +147,7 @@ application_options get_application_options(int argc, char** argv)
         a_o.test       = vm["test"].as<std::string>();
         a_o.configfile = vm["config-file"].as<std::string>();
     } catch (const std::exception &ex) {
-        print_error_and_exit(ex.what());
+        throw configuration_error(ex.what());
     }
 
     return a_o;
@@ -167,10 +157,10 @@ void validate_test_type(application_options& a_o)
 {
     auto t_type_itr = to_test_type.find(a_o.test);
     if (t_type_itr ==  to_test_type.end()) {
-        print_error_and_exit((boost::format("unknown test type (%1%)")
-                              % a_o.test).str());
+        throw configuration_error((boost::format("unknown test type (%1%)")
+                                   % a_o.test).str());
     } else if (t_type_itr->second == test_type::none) {
-        print_error_and_exit("the test type argument must be specified");
+        throw configuration_error("the test type argument must be specified");
     }
 }
 
@@ -181,28 +171,28 @@ void parse_configfile_and_process_options(application_options& a_o) {
     a_o.configfile = lth_file::tilde_expand(a_o.configfile);
 
     if (!fs::exists(a_o.configfile) || !fs::is_regular_file(a_o.configfile))
-        print_error_and_exit("configuration file does not exist");
+        throw configuration_error("configuration file does not exist");
 
     if (!lth_file::file_readable(a_o.configfile))
-        print_error_and_exit("cannot read the configuration file");
+        throw configuration_error("cannot read the configuration file");
 
     lth_jc::JsonContainer config_json;
 
     try {
         config_json = lth_jc::JsonContainer(lth_file::read(a_o.configfile));
     } catch (lth_jc::data_parse_error &e) {
-        print_error_and_exit("failed to parse the configuration file; "
-                             "invalid JSON");
+        throw configuration_error("failed to parse the configuration file; "
+                                  "invalid JSON");
     }
 
     if (config_json.type() != lth_jc::DataType::Object)
-        print_error_and_exit("invalid configuration file; root element is not "
-                             "a JSON object");
+        throw configuration_error("invalid configuration file; root element "
+                                  "is not a JSON object");
 
     for (const auto &key: config_json.keys())
         if (!application_options::exists(key))
-            print_error_and_exit((boost::format("unknown option (%1%)")
-                                  % key).str());
+            throw configuration_error((boost::format("unknown option (%1%)")
+                                      % key).str());
 
     if (a_o.logfile.empty()) {
         if (config_json.includes("logfile")) {
@@ -227,11 +217,11 @@ void validate_application_options(application_options& a_o)
 {
     auto log_file_parent_dir = (fs::path {a_o.logfile}).parent_path();
     if (!fs::exists(log_file_parent_dir))
-        print_error_and_exit("log directory does not exist");
+        throw configuration_error("log directory does not exist");
 
     if (option_to_log_level.find(a_o.loglevel) == option_to_log_level.end())
-        print_error_and_exit((boost::format("invalid log level (%1%)")
-                              % a_o.loglevel).str());
+        throw configuration_error((boost::format("invalid log level (%1%)")
+                                   % a_o.loglevel).str());
 }
 
 }  // namespace configuration

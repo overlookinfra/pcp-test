@@ -25,6 +25,7 @@ include_directories(inc
 
 set(PROJECT_SOURCES
     src/client.cc
+    src/configuration.cc
     src/pcp-test.cc
     src/pcp_connector.cc
     src/request.cc

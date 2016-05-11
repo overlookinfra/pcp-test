@@ -31,8 +31,8 @@ void run_trivial_test()
 
     client_configuration c {"wss://broker.example.com:8142/pcp/",
                             get_path("ca_crt.pem"),
-                            get_path("0004agent.example.com_crt.pem"),
-                            get_path("0004agent.example.com_key.pem"),
+                            get_path("test/0004agent.example.com_crt.pem"),
+                            get_path("test/0004agent.example.com_key.pem"),
                             "test_client",
                             100};
 

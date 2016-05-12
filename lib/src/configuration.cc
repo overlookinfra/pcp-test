@@ -94,6 +94,7 @@ application_options get_application_options(int argc, char** argv)
     po::options_description visible_options {"visible command line options"};
     visible_options.add_options()
             ("help,h", "produce help message")
+            ("version,v", "print the version and exit")
             ("loglevel",
              po::value<std::string>()->default_value(""),
              "log level (none, trace, debug, info, warning, error, fatal)")
@@ -101,9 +102,8 @@ application_options get_application_options(int argc, char** argv)
              po::value<std::string>()->default_value(""),
              "log file")
             ("config-file",
-             po::value<std::string>()->default_value(""),
-             "configuration file")
-            ("version,v", "print the version and exit");
+             po::value<std::string>()->default_value(DEFAULT_CONFIGFILE),
+             "mandatory configuration file");
 
     po::positional_options_description positional_options {};
     positional_options.add("test", 1);
@@ -166,10 +166,11 @@ void validate_test_type(application_options& a_o)
 
 void parse_configfile_and_process_options(application_options& a_o) {
     if (a_o.configfile.empty())
-        a_o.configfile = DEFAULT_CONFIGFILE;
+        throw configuration_error("configuration file must be specified");
 
     a_o.configfile = lth_file::tilde_expand(a_o.configfile);
 
+    // NOTE(ale): configfile is mandatory!
     if (!fs::exists(a_o.configfile) || !fs::is_regular_file(a_o.configfile))
         throw configuration_error("configuration file does not exist");
 

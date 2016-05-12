@@ -24,6 +24,7 @@
 #pragma GCC diagnostic pop
 
 #include <map>
+#include <vector>
 
 namespace pcp_test {
 namespace configuration {
@@ -38,6 +39,9 @@ namespace fs       = boost::filesystem;
 const std::string DEFAULT_CONFIGFILE {"/etc/puppetlabs/pcp-test/pcp-test.conf"};
 const std::string DEFAULT_LOGFILE {"/var/log/puppetlabs/pcp-test/pcp-test.log"};
 const std::string DEFAULT_LOGLEVEL_TEXT {"info"};
+const std::string DEFAULT_BROKER_WS_URI {"wss://localhost:8142/pcp/"};
+
+static const std::string URL_REGEX { "^wss:\\/\\/\\S+:\\d+\\/\\S+" };
 
 void help(po::options_description &desc)
 {
@@ -103,7 +107,10 @@ application_options get_application_options(int argc, char** argv)
              "log file")
             ("config-file",
              po::value<std::string>()->default_value(DEFAULT_CONFIGFILE),
-             "mandatory configuration file");
+             "mandatory configuration file")
+            ("broker-ws-uris,u",
+             po::value<std::vector<std::string>>()->multitoken(),
+             "PCP broker WebSocket URIs");
 
     po::positional_options_description positional_options {};
     positional_options.add("test", 1);
@@ -149,6 +156,12 @@ application_options get_application_options(int argc, char** argv)
     a_o.loglevel   = vm["loglevel"].as<std::string>();
     a_o.test       = vm["test"].as<std::string>();
     a_o.configfile = vm["config-file"].as<std::string>();
+
+    if (vm.count("broker-ws-uris")) {
+        a_o.broker_ws_uris = vm["broker-ws-uris"].as<std::vector<std::string>>();
+    } else {
+        a_o.broker_ws_uris = std::vector<std::string> {DEFAULT_BROKER_WS_URI};
+    }
 
     return a_o;
 }
@@ -216,13 +229,22 @@ void parse_configfile_and_process_options(application_options& a_o) {
 
 void validate_application_options(application_options& a_o)
 {
+    // log file
     auto log_file_parent_dir = (fs::path {a_o.logfile}).parent_path();
     if (!fs::exists(log_file_parent_dir))
         throw configuration_error("log directory does not exist");
 
+    // log level
     if (option_to_log_level.find(a_o.loglevel) == option_to_log_level.end())
         throw configuration_error((boost::format("invalid log level (%1%)")
                                    % a_o.loglevel).str());
+
+    // broker WebSocket URIs
+    boost::regex uri_re {URL_REGEX};
+    for (auto uri : a_o.broker_ws_uris)
+        if (!boost::regex_match(uri, uri_re))
+            throw configuration_error((boost::format("invalid WebSocket URI (%1%)")
+                                       % uri).str());
 }
 
 }  // namespace configuration

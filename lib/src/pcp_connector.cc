@@ -5,7 +5,7 @@
 namespace pcp_test {
 
 pcp_connector::pcp_connector(const client_configuration& cfg)
-    : PCPClient::Connector {cfg.broker_ws_uri,
+    : PCPClient::Connector {cfg.broker_ws_uris[0],
                             cfg.client_type,
                             cfg.ca,
                             cfg.crt,

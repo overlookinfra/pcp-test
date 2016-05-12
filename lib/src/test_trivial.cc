@@ -16,7 +16,7 @@ namespace pcp_test {
 
 namespace fs = boost::filesystem;
 
-void run_trivial_test()
+void run_trivial_test(const application_options& a_o)
 {
     auto root_path  = fs::path(PCP_TEST_ROOT_PATH);
     auto certs_path = root_path / "test-resources/ssl";
@@ -29,7 +29,7 @@ void run_trivial_test()
           return (certs_path / s).string();
         };
 
-    client_configuration c {"wss://broker.example.com:8142/pcp/",
+    client_configuration c {a_o.broker_ws_uris,
                             get_path("ca_crt.pem"),
                             get_path("test/0004agent.example.com_crt.pem"),
                             get_path("test/0004agent.example.com_key.pem"),
@@ -45,7 +45,8 @@ void run_trivial_test()
         throw fatal_error {"failed to establish the WebSocket connection"};
     }
 
-    LOG_INFO("We should be associated with %1% at this point!", c.broker_ws_uri);
+    LOG_INFO("We should be associated with %1% at this point!",
+             c.broker_ws_uris[0]);
     if (!trivial_client.connector.isAssociated())
         throw fatal_error {"failed to associate"};
 }

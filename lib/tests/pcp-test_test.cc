@@ -29,7 +29,7 @@ std::string get_path(std::string&& s)
 
 SCENARIO("client ctor", "[configuration]")
 {
-    pcp_test::client_configuration c {"wss://localhost:8142",
+    pcp_test::client_configuration c {{"wss://localhost:8142"},
                                       get_path("ca_crt.pem"),
                                       get_path("test/0007agent.example.com_crt.pem"),
                                       get_path("test/0007agent.example.com_key.pem"),

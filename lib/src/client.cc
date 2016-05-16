@@ -8,7 +8,12 @@ namespace pcp_test {
 
 client::client(client_configuration cfg)
     : configuration {std::move(cfg)},
-      connector {configuration}
+      connector {configuration.broker_ws_uris[0],
+                 configuration.client_type,
+                 configuration.ca,
+                 configuration.crt,
+                 configuration.key,
+                 configuration.connection_timeout_ms}
 {
     LOG_INFO("Instantiating client!");
 }

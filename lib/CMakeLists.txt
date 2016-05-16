@@ -29,7 +29,6 @@ set(PROJECT_SOURCES
     src/configuration.cc
     src/message.cc
     src/pcp-test.cc
-    src/pcp_connector.cc
     src/schemas.cc
     src/test_trivial.cc
 )

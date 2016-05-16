@@ -1,6 +1,6 @@
 # pcp-test
 
-A framework for creating and executing performance tests on a PCP broker.
+A framework for creating and executing performance tests on PCP brokers.
 
 ## Required packages
 
@@ -16,6 +16,17 @@ A framework for creating and executing performance tests on a PCP broker.
     cmake ..
     make -j
 ```
+
+## SSL certificates
+
+pcp-test requires SSL certificates signed by the same Certificate Authorithy
+as the one used by the PCP brokers under test. You can use `puppet cert` for
+that; please refer to the [pcp-broker docs](https://github.com/puppetlabs/pcp-broker/blob/master/doc/authentication.md).
+
+The directory that contains the certificates can be specified by the
+`--certificates-dir` option. The default directory is
+`pcp-test/dev-resources/pcp-certificates`. The requirements for storing the
+certificate files are explained in this [document](doc/certificates.md).
 
 ## Maintenance
 

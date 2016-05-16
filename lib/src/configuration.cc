@@ -2,6 +2,8 @@
 #include <pcp-test/pcp-test.hpp>
 #include <pcp-test/errors.hpp>
 
+#include <pcp-test/root_path.h>
+
 #include <cpp-pcp-client/util/logging.hpp>
 
 #include <leatherman/logging/logging.hpp>
@@ -40,8 +42,9 @@ const std::string DEFAULT_CONFIGFILE {"/etc/puppetlabs/pcp-test/pcp-test.conf"};
 const std::string DEFAULT_LOGFILE {"/var/log/puppetlabs/pcp-test/pcp-test.log"};
 const std::string DEFAULT_LOGLEVEL_TEXT {"info"};
 const std::string DEFAULT_BROKER_WS_URI {"wss://localhost:8142/pcp/"};
-
-static const std::string URL_REGEX { "^wss:\\/\\/\\S+:\\d+\\/\\S+" };
+const std::string URL_REGEX { "^wss:\\/\\/\\S+:\\d+\\/\\S+" };
+const std::string DEFAULT_CERTIFICATES_DIR {
+        (fs::path(PCP_TEST_ROOT_PATH) / "dev-resources" / "pcp-certificates").string()};
 
 void help(po::options_description &desc)
 {
@@ -110,7 +113,11 @@ application_options get_application_options(int argc, char** argv)
              "mandatory configuration file")
             ("broker-ws-uris,u",
              po::value<std::vector<std::string>>()->multitoken(),
-             "PCP broker WebSocket URIs");
+             "PCP broker WebSocket URIs")
+            ("certificates-dir",
+             po::value<std::string>()->default_value(DEFAULT_CERTIFICATES_DIR),
+             "SSL certificates path (see doc for the expected directory tree "
+             "structure)");
 
     po::positional_options_description positional_options {};
     positional_options.add("test", 1);
@@ -162,6 +169,8 @@ application_options get_application_options(int argc, char** argv)
     } else {
         a_o.broker_ws_uris = std::vector<std::string> {DEFAULT_BROKER_WS_URI};
     }
+
+    a_o.certificates_dir = vm["certificates-dir"].as<std::string>();
 
     return a_o;
 }
@@ -225,6 +234,8 @@ void parse_configfile_and_process_options(application_options& a_o) {
             a_o.loglevel = DEFAULT_LOGLEVEL_TEXT;
         }
     }
+
+    a_o.certificates_dir = lth_file::tilde_expand(a_o.certificates_dir);
 }
 
 void validate_application_options(application_options& a_o)
@@ -245,6 +256,14 @@ void validate_application_options(application_options& a_o)
         if (!boost::regex_match(uri, uri_re))
             throw configuration_error((boost::format("invalid WebSocket URI (%1%)")
                                        % uri).str());
+
+    // SSL certificates directory
+    fs::path cert_dir_path {a_o.certificates_dir};
+    if (!fs::exists(cert_dir_path) || !fs::exists(cert_dir_path / "test"))
+        throw configuration_error("invalid certificate directory");
+
+    if (!fs::exists(cert_dir_path / "ca_crt.pem"))
+        throw configuration_error("CA certificate does not exist");
 }
 
 }  // namespace configuration

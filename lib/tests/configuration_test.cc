@@ -115,52 +115,68 @@ SCENARIO("configuration::parse_configfile_and_process_options", "[configuration]
 }
 
 SCENARIO("configuration::validate_application_options", "[configuration]") {
+    application_options ao {};
+    ao.loglevel = "info";
+    ao.logfile = (CONFIG_PATH / "good.log").string();
+    ao.broker_ws_uris = {"wss://localhost:8142/pcp/vNext",
+                         "wss://broker.example.com:8142/pcp/"};
+    ao.certificates_dir = (TEST_PATH / "ssl").string();
+
     SECTION("throws a configuration_error if the parent log dir does not exist") {
-        application_options bad_log_dir_ao {};
-        bad_log_dir_ao.loglevel = "info";
-        bad_log_dir_ao.logfile = (CONFIG_PATH / "does" / "not" / "exist").string();
-        REQUIRE_THROWS_AS(configuration::validate_application_options(bad_log_dir_ao),
+        ao.logfile = (CONFIG_PATH / "does" / "not" / "exist").string();
+        REQUIRE_THROWS_AS(configuration::validate_application_options(ao),
                           configuration_error);
     }
 
     SECTION("throws a configuration_error in case of invalid log level") {
-        application_options bad_log_level_ao {};
-        bad_log_level_ao.loglevel = "super_logging";
-        bad_log_level_ao.logfile = (CONFIG_PATH / "good.log").string();
-        REQUIRE_THROWS_AS(configuration::validate_application_options(bad_log_level_ao),
+        ao.loglevel = "super_logging";
+        REQUIRE_THROWS_AS(configuration::validate_application_options(ao),
                           configuration_error);
     }
 
 
     SECTION("throws a configuration_error in case of bad WS URI") {
-        application_options bad_ao {};
-        bad_ao.loglevel = "info";
-        bad_ao.logfile = (CONFIG_PATH / "good.log").string();
-
         SECTION("bad protocol") {
-            bad_ao.broker_ws_uris = {"https://localhost:8080/godscop/"};
+            ao.broker_ws_uris = {"https://localhost:8080/godscop/"};
         }
 
         SECTION("not secure WebSocket") {
-            bad_ao.broker_ws_uris = {"ws://localhost:8142/pcp/"};
+            ao.broker_ws_uris = {"ws://localhost:8142/pcp/"};
         }
 
         SECTION("no port") {
-            bad_ao.broker_ws_uris = {"wss://localhost:8142/pcp/vNext",
-                                     "wss://broker.example.com"};
+            ao.broker_ws_uris = {"wss://localhost:8142/pcp/vNext",
+                                 "wss://broker.example.com"};
         }
 
-        REQUIRE_THROWS_AS(configuration::validate_application_options(bad_ao),
+        REQUIRE_THROWS_AS(configuration::validate_application_options(ao),
+                          configuration_error);
+    }
+
+    SECTION("throws a configuration_error in case of bad Certificates Directory") {
+        SECTION("directory does not exist") {
+            ao.certificates_dir = (CONFIG_PATH / "does" / "not" / "exist").string();
+        }
+
+        SECTION("directory is a regular file") {
+            ao.certificates_dir = (CONFIG_PATH / "bad.json").string();
+        }
+
+        SECTION("no CA cert") {
+            ao.certificates_dir = (TEST_PATH / "ssl_no_ca").string();
+        }
+
+        SECTION("no 'test' subdirectory") {
+            ao.certificates_dir = (TEST_PATH / "ssl_no_test").string();
+        }
+
+
+        REQUIRE_THROWS_AS(configuration::validate_application_options(ao),
                           configuration_error);
     }
 
     SECTION("validates succesfully good options") {
-        application_options good_ao {};
-        good_ao.loglevel = "info";
-        good_ao.logfile = (CONFIG_PATH / "good.log").string();
-        good_ao.broker_ws_uris = {"wss://localhost:8142/pcp/vNext",
-                                  "wss://broker.example.com:8142/pcp/"};
-        REQUIRE_NOTHROW(configuration::validate_application_options(good_ao));
+        REQUIRE_NOTHROW(configuration::validate_application_options(ao));
     }
 }
 

@@ -25,10 +25,12 @@ include_directories(inc
 
 set(PROJECT_SOURCES
     src/client.cc
+    src/client_configuration.cc
     src/configuration.cc
     src/pcp-test.cc
     src/pcp_connector.cc
     src/request.cc
+    src/schemas.cc
     src/test_trivial.cc
 )
 

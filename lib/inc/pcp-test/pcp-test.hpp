@@ -17,7 +17,7 @@ enum class test_type {
     trivial
 };
 
-extern std::unordered_map<std::string, test_type> to_test_type;
+extern const std::unordered_map<std::string, test_type> to_test_type;
 
 /**
  * Query the library version.

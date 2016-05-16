@@ -31,6 +31,6 @@ SCENARIO("client ctor", "[configuration]")
                                        client_type,
                                        uris,
                                        certs_path};
-    
+
     REQUIRE_NOTHROW(pcp_test::client {std::move(cc)});
 }

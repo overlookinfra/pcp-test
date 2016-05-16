@@ -1,4 +1,5 @@
 #include <pcp-test/client.hpp>
+#include <pcp-test/schemas.hpp>
 
 #include <leatherman/logging/logging.hpp>
 
@@ -17,7 +18,18 @@ client::client(client_configuration cfg)
                  configuration.key,
                  configuration.connection_timeout_ms}
 {
-    LOG_INFO("Instantiating client!");
+    connector.registerMessageCallback(
+            schemas::request(),
+            std::bind(&client::process_request, this, std::placeholders::_1));
+
+    connector.registerMessageCallback(
+            schemas::response(),
+            std::bind(&client::process_response, this, std::placeholders::_1));
+
+    connector.registerMessageCallback(
+            schemas::error(),
+            std::bind(&client::process_error, this, std::placeholders::_1));
+}
 
 void client::send_request(const message& request,
                   const std::vector<std::string>& endpoints)
@@ -65,6 +77,25 @@ void client::reply_with_error(const message& request,
                   request.transaction(), e.what());
     }
 }
+
+// Protected virtual callbacks
+
+void client::process_request(const PCPClient::ParsedChunks& parsed_chunks)
+{
+    if (request_callback)
+        request_callback(parsed_chunks, this);
+}
+
+void client::process_response(const PCPClient::ParsedChunks& parsed_chunks)
+{
+    if (response_callback)
+        response_callback(parsed_chunks, this);
+}
+
+void client::process_error(const PCPClient::ParsedChunks& parsed_chunks)
+{
+    if (error_callback)
+        error_callback(parsed_chunks, this);
 }
 
 }  // namespace pcp_test

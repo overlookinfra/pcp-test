@@ -12,6 +12,8 @@
 #include <cpp-pcp-client/connector/connector.hpp>
 
 #include <string>
+#include <functional>
+#include <memory>
 #include <vector>
 
 namespace pcp_test {
@@ -23,8 +25,19 @@ namespace pcp_test {
 
 class client
 {
+  public:
+    // NOTE(ale): PCPClient::Connector's dtor resets all WS event
+    // callbacks, so it's safe to pass the instance pointer
+    using msg_callback =
+        std::function<void(const PCPClient::ParsedChunks& parsed_chunks,
+                           client* client_ptr)>;
+
     client_configuration configuration;
     PCPClient::Connector connector;
+
+    msg_callback request_callback;
+    msg_callback response_callback;
+    msg_callback error_callback;
 
     client() = delete;
     explicit client(client_configuration config);
@@ -42,6 +55,10 @@ class client
     // error message.
     void reply_with_error(const message& request,
                           const std::string& err_msg);
+  protected:
+    virtual void process_request(const PCPClient::ParsedChunks& parsed_chunks);
+    virtual void process_response(const PCPClient::ParsedChunks& parsed_chunks);
+    virtual void process_error(const PCPClient::ParsedChunks& parsed_chunks);
 };
 
 }  // namespace pcp_test

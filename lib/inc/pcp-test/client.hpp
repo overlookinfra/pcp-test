@@ -16,7 +16,12 @@
 
 namespace pcp_test {
 
-struct client
+// pcp_test::client provides two ways of implementing the dispatch
+// logic for handling PCP test messages (request, response, error):
+// polymorphism, by subclassing and defining process_XXX() methods,
+// and callbacks
+
+class client
 {
     client_configuration configuration;
     PCPClient::Connector connector;

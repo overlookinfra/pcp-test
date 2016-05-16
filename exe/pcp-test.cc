@@ -19,7 +19,7 @@ namespace lth_log = leatherman::logging;
 void start(const application_options& a_o)
 {
     assert(to_test_type.find(a_o.test)->second == test_type::trivial);
-    run_trivial_test();
+    run_trivial_test(a_o);
 }
 
 int main(int argc, char **argv)

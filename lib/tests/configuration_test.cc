@@ -131,10 +131,35 @@ SCENARIO("configuration::validate_application_options", "[configuration]") {
                           configuration_error);
     }
 
+
+    SECTION("throws a configuration_error in case of bad WS URI") {
+        application_options bad_ao {};
+        bad_ao.loglevel = "info";
+        bad_ao.logfile = (CONFIG_PATH / "good.log").string();
+
+        SECTION("bad protocol") {
+            bad_ao.broker_ws_uris = {"https://localhost:8080/godscop/"};
+        }
+
+        SECTION("not secure WebSocket") {
+            bad_ao.broker_ws_uris = {"ws://localhost:8142/pcp/"};
+        }
+
+        SECTION("no port") {
+            bad_ao.broker_ws_uris = {"wss://localhost:8142/pcp/vNext",
+                                     "wss://broker.example.com"};
+        }
+
+        REQUIRE_THROWS_AS(configuration::validate_application_options(bad_ao),
+                          configuration_error);
+    }
+
     SECTION("validates succesfully good options") {
         application_options good_ao {};
         good_ao.loglevel = "info";
         good_ao.logfile = (CONFIG_PATH / "good.log").string();
+        good_ao.broker_ws_uris = {"wss://localhost:8142/pcp/vNext",
+                                  "wss://broker.example.com:8142/pcp/"};
         REQUIRE_NOTHROW(configuration::validate_application_options(good_ao));
     }
 }

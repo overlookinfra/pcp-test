@@ -6,12 +6,13 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 namespace pcp_test {
 
 struct client_configuration
 {
-    std::string broker_ws_uri;
+    std::vector<std::string> broker_ws_uris;
     std::string ca;
     std::string crt;
     std::string key;

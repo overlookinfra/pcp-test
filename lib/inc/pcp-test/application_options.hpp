@@ -6,6 +6,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 #include <set>
 
 namespace pcp_test {
@@ -17,11 +18,14 @@ struct application_options
     std::string loglevel;       // log level
     std::string configfile;     // path to the configuration file
 
+    std::vector<std::string> broker_ws_uris;    // WS URIs of PCP brokers
+
     static bool exists(const std::string& option_name)
     {
         static std::set<std::string> option_names {"logfile",
                                                    "loglevel",
-                                                   "configfile"};
+                                                   "configfile",
+                                                   "broker-ws-uris"};
         return (option_names.find(option_name) != option_names.end());
     }
 };

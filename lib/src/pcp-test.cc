@@ -5,7 +5,7 @@
 
 namespace pcp_test {
 
-std::unordered_map<std::string, test_type> to_test_type {
+const std::unordered_map<std::string, test_type> to_test_type {
         {{"trivial", test_type::trivial},
          {"none", test_type::none}}
 };

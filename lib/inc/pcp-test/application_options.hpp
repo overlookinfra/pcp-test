@@ -20,6 +20,7 @@ struct application_options
 
     std::vector<std::string> broker_ws_uris;    // WS URIs of PCP brokers
     std::string certificates_dir;               // SSL certs dir
+    std::string results_dir;                    // results dir
 
     static bool exists(const std::string& option_name)
     {
@@ -27,7 +28,8 @@ struct application_options
                                                    "loglevel",
                                                    "configfile",
                                                    "broker-ws-uris",
-                                                   "certificates-dir"};
+                                                   "certificates-dir",
+                                                   "results-dir"};
         return (option_names.find(option_name) != option_names.end());
     }
 };

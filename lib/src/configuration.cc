@@ -43,6 +43,7 @@ const std::string DEFAULT_LOGFILE {"/var/log/puppetlabs/pcp-test/pcp-test.log"};
 const std::string DEFAULT_LOGLEVEL_TEXT {"info"};
 const std::string DEFAULT_BROKER_WS_URI {"wss://localhost:8142/pcp/"};
 const std::string URL_REGEX { "^wss:\\/\\/\\S+:\\d+\\/\\S+" };
+const std::string DEFAULT_RESULTS_DIR {"/opt/puppetlabs/pcp-test/results"};
 const std::string DEFAULT_CERTIFICATES_DIR {
         (fs::path(PCP_TEST_ROOT_PATH) / "dev-resources" / "pcp-certificates").string()};
 
@@ -171,6 +172,7 @@ application_options get_application_options(int argc, char** argv)
     }
 
     a_o.certificates_dir = vm["certificates-dir"].as<std::string>();
+    a_o.results_dir      = vm["results-dir"].as<std::string>();
 
     return a_o;
 }
@@ -236,6 +238,7 @@ void parse_configfile_and_process_options(application_options& a_o) {
     }
 
     a_o.certificates_dir = lth_file::tilde_expand(a_o.certificates_dir);
+    a_o.results_dir      = lth_file::tilde_expand(a_o.results_dir);
 }
 
 void validate_application_options(application_options& a_o)
@@ -264,6 +267,11 @@ void validate_application_options(application_options& a_o)
 
     if (!fs::exists(cert_dir_path / "ca_crt.pem"))
         throw configuration_error("CA certificate does not exist");
+
+    // results directory
+    if (!fs::exists(a_o.results_dir) || !fs::is_directory(a_o.results_dir))
+        throw configuration_error((boost::format("invalid results directory '%1%'")
+                                   % a_o.results_dir).str());
 }
 
 }  // namespace configuration

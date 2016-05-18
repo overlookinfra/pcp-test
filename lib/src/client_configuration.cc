@@ -32,6 +32,11 @@ client_configuration::client_configuration(
       connection_timeout_ms {std::move(connection_tmeout_ms_)},
       message_timeout_s {std::move(message_timeout_s)}
 {
+    update_cert_paths();
+}
+
+void client_configuration::update_cert_paths()
+{
     fs::path c_p {certificates_dir};
     ca  = (c_p / "ca_crt.pem").string();
     crt = (c_p / "test" / (CERT_FILE_FORMAT % common_name % "crt").str()).string();

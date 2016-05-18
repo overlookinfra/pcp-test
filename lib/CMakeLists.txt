@@ -30,7 +30,10 @@ set(PROJECT_SOURCES
     src/message.cc
     src/pcp-test.cc
     src/schemas.cc
+    src/test_connection.cc
+    src/test_connection_parameters.cc
     src/test_trivial.cc
+    src/util.cc
 )
 
 ## An object target is generated that can be used by both the library and test

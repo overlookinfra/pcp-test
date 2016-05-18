@@ -5,6 +5,8 @@
 
 #pragma once
 
+#include <leatherman/json_container/json_container.hpp>
+
 #include <string>
 #include <vector>
 #include <set>
@@ -20,14 +22,24 @@ struct application_options
 
     std::vector<std::string> broker_ws_uris;    // WS URIs of PCP brokers
     std::string certificates_dir;               // SSL certs dir
+    std::string results_dir;                    // results dir
 
-    static bool exists(const std::string& option_name)
+    // hidden settings
+    std::set<std::string> agents;               // agent CNs
+    std::set<std::string> controllers;          // controller CNs
+
+    // configuration parameters for test_connection
+    leatherman::json_container::JsonContainer connection_test_parameters;
+
+    static bool is_configuration_file_option(const std::string& option_name)
     {
         static std::set<std::string> option_names {"logfile",
                                                    "loglevel",
                                                    "configfile",
                                                    "broker-ws-uris",
-                                                   "certificates-dir"};
+                                                   "certificates-dir",
+                                                   "results-dir",
+                                                   "connection-test-parameters"};
         return (option_names.find(option_name) != option_names.end());
     }
 };

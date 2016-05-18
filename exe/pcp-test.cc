@@ -1,5 +1,6 @@
 #include <pcp-test/configuration.hpp>
 #include <pcp-test/test_trivial.hpp>
+#include <pcp-test/test_connection.hpp>
 #include <pcp-test/pcp-test.hpp>
 #include <pcp-test/errors.hpp>
 
@@ -18,8 +19,16 @@ namespace lth_log = leatherman::logging;
 
 void start(const application_options& a_o)
 {
-    assert(to_test_type.find(a_o.test)->second == test_type::trivial);
-    run_trivial_test(a_o);
+    switch (to_test_type.at(a_o.test)) {
+        case (test_type::trivial):
+            run_trivial_test(a_o);
+            break;
+        case (test_type::connection):
+            run_connection_test(a_o);
+            break;
+        default:
+            assert(false);
+    }
 }
 
 int main(int argc, char **argv)

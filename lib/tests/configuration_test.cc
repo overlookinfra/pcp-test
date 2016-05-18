@@ -116,11 +116,14 @@ SCENARIO("configuration::parse_configfile_and_process_options", "[configuration]
 
 SCENARIO("configuration::validate_application_options", "[configuration]") {
     application_options ao {};
+    ao.test = "trivial";
     ao.loglevel = "info";
+    ao.configfile = (CONFIG_PATH / "good.json").string();
     ao.logfile = (CONFIG_PATH / "good.log").string();
     ao.broker_ws_uris = {"wss://localhost:8142/pcp/vNext",
                          "wss://broker.example.com:8142/pcp/"};
     ao.certificates_dir = (TEST_PATH / "ssl").string();
+    ao.results_dir = TEST_PATH.string();
 
     SECTION("throws a configuration_error if the parent log dir does not exist") {
         ao.logfile = (CONFIG_PATH / "does" / "not" / "exist").string();
@@ -170,6 +173,19 @@ SCENARIO("configuration::validate_application_options", "[configuration]") {
             ao.certificates_dir = (TEST_PATH / "ssl_no_test").string();
         }
 
+
+        REQUIRE_THROWS_AS(configuration::validate_application_options(ao),
+                          configuration_error);
+    }
+
+    SECTION("throws a configuration_error in case of bad Results Directory") {
+        SECTION("directory does not exist") {
+            ao.results_dir = (CONFIG_PATH / "does" / "not" / "exist").string();
+        }
+
+        SECTION("is a regular file") {
+            ao.results_dir = (CONFIG_PATH / "bad.json").string();
+        }
 
         REQUIRE_THROWS_AS(configuration::validate_application_options(ao),
                           configuration_error);

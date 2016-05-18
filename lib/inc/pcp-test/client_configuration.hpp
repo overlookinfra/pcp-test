@@ -25,6 +25,8 @@ struct client_configuration
     std::string crt;
     std::string key;
 
+    void update_cert_paths();
+
     client_configuration(
             std::string common_name,
             const std::string& client_type,

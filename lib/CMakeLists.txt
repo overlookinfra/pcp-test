@@ -31,6 +31,7 @@ set(PROJECT_SOURCES
     src/pcp-test.cc
     src/schemas.cc
     src/test_trivial.cc
+    src/util.cc
 )
 
 ## An object target is generated that can be used by both the library and test

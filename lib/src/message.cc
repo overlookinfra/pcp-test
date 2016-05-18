@@ -1,6 +1,6 @@
 #include <pcp-test/message.hpp>
 #include <pcp-test/schemas.hpp>
-#include <pcp-test/uuid.hpp>
+#include <pcp-test/util.hpp>
 
 #include <leatherman/util/time.hpp>
 
@@ -22,7 +22,7 @@ message::message(const std::string &message_type,
                  const std::string &sender,
                  const std::string &transaction,
                  std::string error_msg)
-        : id_ {get_UUID()},
+        : id_ {util::get_UUID()},
           message_type_ {message_type},
           sender_ {sender},
           transaction_ {transaction},

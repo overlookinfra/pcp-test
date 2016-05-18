@@ -116,7 +116,9 @@ SCENARIO("configuration::parse_configfile_and_process_options", "[configuration]
 
 SCENARIO("configuration::validate_application_options", "[configuration]") {
     application_options ao {};
+    ao.test = "trivial";
     ao.loglevel = "info";
+    ao.configfile = (CONFIG_PATH / "good.json").string();
     ao.logfile = (CONFIG_PATH / "good.log").string();
     ao.broker_ws_uris = {"wss://localhost:8142/pcp/vNext",
                          "wss://broker.example.com:8142/pcp/"};

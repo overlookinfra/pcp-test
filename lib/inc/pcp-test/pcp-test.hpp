@@ -14,6 +14,7 @@ namespace pcp_test {
 
 enum class test_type {
     none,
+    connection,
     trivial
 };
 

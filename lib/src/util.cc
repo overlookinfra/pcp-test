@@ -14,7 +14,7 @@ namespace util {
 
 static const std::string SHORT_DATETIME_FORMAT = "%C%m%d_%H%M";
 
-static std::string get_expiry_datetime(int expiry_minutes, const std::string format) {
+static std::string get_expiry_datetime(int expiry_minutes, const std::string& format) {
     struct tm expiry_time_info;
     char expiry_time_buffer[80];
 

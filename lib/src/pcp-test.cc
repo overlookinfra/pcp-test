@@ -6,8 +6,9 @@
 namespace pcp_test {
 
 const std::unordered_map<std::string, test_type> to_test_type {
-        {{"trivial", test_type::trivial},
-         {"none", test_type::none}}
+        {{"connection", test_type::connection},
+         {"trivial",    test_type::trivial},
+         {"none",       test_type::none}}
 };
 
 std::string version()

@@ -239,31 +239,33 @@ connection_test_result connection_test::perform_current_run()
 
     // Spawn concurrent tasks
 
+    auto add_client =
+        [&c_cfg, &all_client_ptrs] (
+                const std::string& name,
+                std::vector<std::shared_ptr<client>>& task_client_ptrs)
+        {
+            c_cfg.common_name = name;
+            c_cfg.update_cert_paths();
+            auto c_ptr = std::make_shared<client>(c_cfg);
+            all_client_ptrs.push_back(c_ptr);
+            task_client_ptrs.push_back(std::move(c_ptr));
+        };
+
     for (auto task_idx = 0; task_idx < current_run_.concurrency; task_idx++) {
         std::vector<std::shared_ptr<client>> task_client_ptrs {};
         endpoint_idx = 0;
 
-        auto add_client =
-            [&c_cfg, &all_client_ptrs, &task_client_ptrs] (const std::string& name)
-            {
-                c_cfg.common_name = name;
-                c_cfg.update_cert_paths();
-                auto c_ptr = std::make_shared<client>(c_cfg);
-                all_client_ptrs.push_back(c_ptr);
-                task_client_ptrs.push_back(std::move(c_ptr));
-            };
-
         for (const auto& name : app_opt_.agents) {
             if (++endpoint_idx > current_run_.num_endpoints)
                 break;
-            add_client(name);
+            add_client(name, task_client_ptrs);
         }
 
         if (endpoint_idx <= current_run_.num_endpoints) {
             for (const auto& name : app_opt_.controllers) {
                 if (++endpoint_idx > current_run_.num_endpoints)
                     break;
-                add_client(name);
+                add_client(name, task_client_ptrs);
             }
         }
 

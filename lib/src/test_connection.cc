@@ -228,7 +228,6 @@ connection_test_result connection_test::perform_current_run()
                           const unsigned int);
     std::vector<std::future<int>> task_futures {};
     std::vector<std::shared_ptr<client>> all_client_ptrs {};
-    int endpoint_idx {};
     std::string c_type {"CONNECTION_TEST_CLIENT"};
     client_configuration c_cfg {"0000agent",
                                 c_type,
@@ -239,33 +238,45 @@ connection_test_result connection_test::perform_current_run()
 
     // Spawn concurrent tasks
 
+    auto add_client =
+        [&c_cfg, &all_client_ptrs] (
+                std::string name,
+                std::vector<std::shared_ptr<client>>& task_client_ptrs) -> void
+        {
+            c_cfg.common_name = name;
+            c_cfg.update_cert_paths();
+            auto c_ptr = std::make_shared<client>(c_cfg);
+            all_client_ptrs.push_back(c_ptr);
+            task_client_ptrs.push_back(std::move(c_ptr));
+        };
+
+    auto agents_it       = app_opt_.agents.begin();
+    auto agents_end      = app_opt_.agents.end();
+    auto controllers_it  = app_opt_.controllers.begin();
+    auto controllers_end = app_opt_.controllers.end();
+
+    auto get_name =
+        [&agents_it, &agents_end, &controllers_it, &controllers_end] () -> std::string
+        {
+            std::string name {};
+            if (agents_it != agents_end) {
+                name = *agents_it;
+                agents_it++;
+            } else if (controllers_it != controllers_end) {
+                name = *controllers_it;
+                controllers_it++;
+            } else {
+                assert(false);
+            }
+
+            return name;
+        };
+
     for (auto task_idx = 0; task_idx < current_run_.concurrency; task_idx++) {
         std::vector<std::shared_ptr<client>> task_client_ptrs {};
-        endpoint_idx = 0;
 
-        auto add_client =
-            [&c_cfg, &all_client_ptrs, &task_client_ptrs] (const std::string& name)
-            {
-                c_cfg.common_name = name;
-                c_cfg.update_cert_paths();
-                auto c_ptr = std::make_shared<client>(c_cfg);
-                all_client_ptrs.push_back(c_ptr);
-                task_client_ptrs.push_back(std::move(c_ptr));
-            };
-
-        for (const auto& name : app_opt_.agents) {
-            if (++endpoint_idx > current_run_.num_endpoints)
-                break;
-            add_client(name);
-        }
-
-        if (endpoint_idx <= current_run_.num_endpoints) {
-            for (const auto& name : app_opt_.controllers) {
-                if (++endpoint_idx > current_run_.num_endpoints)
-                    break;
-                add_client(name);
-            }
-        }
+        for (auto idx = 0; idx < current_run_.num_endpoints; idx++)
+            add_client(get_name(), task_client_ptrs);
 
         std::packaged_task<task_type> connection_task {&connect_clients_serially};
         task_futures.push_back(connection_task.get_future());

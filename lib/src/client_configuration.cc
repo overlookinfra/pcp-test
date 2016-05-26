@@ -26,9 +26,9 @@ client_configuration::client_configuration(
         long connection_tmeout_ms_,
         unsigned int message_timeout_s_)
     : common_name {std::move(common_name_)},
-      client_type {client_type_},
-      broker_ws_uris {broker_ws_uris_},
-      certificates_dir {certificates_dir_},
+      client_type (client_type_),
+      broker_ws_uris (broker_ws_uris_),
+      certificates_dir (certificates_dir_),
       connection_timeout_ms {std::move(connection_tmeout_ms_)},
       message_timeout_s {std::move(message_timeout_s_)}
 {

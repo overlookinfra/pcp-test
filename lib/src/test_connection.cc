@@ -106,7 +106,7 @@ std::ofstream & operator<< (boost::nowide::ofstream& out,
 //
 
 connection_test::connection_test(const application_options& a_o)
-    : app_opt_ {a_o},
+    : app_opt_ (a_o),
       num_runs_ {app_opt_.connection_test_parameters.get<int>(conn_par::NUM_RUNS)},
       inter_run_pause_ms_ {static_cast<unsigned int>(
           app_opt_.connection_test_parameters.get<int>(conn_par::INTER_RUN_PAUSE_MS))},

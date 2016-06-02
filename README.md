@@ -80,7 +80,7 @@ An example of configuration file is:
     }
 ```
 
-Results will be shown on standard out and stored on a text file in CSV format.
+Results will be shown on standard out and written on a text file in CSV format.
 Results files will be stored in the specified `results-dir` and named as
 `<test-type>_<date-time>.csv`.
 

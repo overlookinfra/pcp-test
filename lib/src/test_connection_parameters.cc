@@ -12,6 +12,7 @@ const std::string ENDPOINTS_INCREMENT {"endpoints-increment"};;
 const std::string CONCURRENCY_INCREMENT {"concurrency-increment"};
 const std::string WS_CONNECTION_TIMEOUT_MS {"ws-connection-timeout-ms"};
 const std::string ASSOCIATION_TTL_S {"association-ttl-s"};
+const std::string PERSIST_CONNECTIONS {"persist-connections"};
 
 }  // namespace connection_test_parameters
 }  // namespace pcp_test

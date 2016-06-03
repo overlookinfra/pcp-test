@@ -8,7 +8,9 @@ a given PCP broker can handle.
 The Connection Test establishes a number of PCP connections between a given PCP
 broker (the first entry of the `broker-ws-uris` array; of course it must point
 to an active PCP broker!) and a number of sets (given by the `concurrency`
-option) of PCP clients (`num-endpoints`).
+option) of PCP clients (`num-endpoints`). If requested (by setting the the
+`persist-connections` boolean option), connections are maintained open by
+sending WebSocket pings.
 
 Different sets of clients are connected in a concurrent way, whereas clients of
 a given set are connected one at a time, with a given pause in between
@@ -41,6 +43,7 @@ Also, all options have integer arguments. The complete list of options is:
  - `concurrency-increment`
  - `ws-connection-timeout-ms`
  - `association-ttl-s`
+ - `persist-connections`
 
 ### Result Metrics
 
@@ -59,6 +62,7 @@ An example of output on standard out is the following:
       5 runs, 30000 ms pause between each run
       50 ms pause between each endpoint connection
       WebSocket connection timeout 2500 ms; Association Request TTL 5 s
+      send WebSocket pings for keep-alive: yes
 
     Starting run 1: 4 concurrent sets of 100 endpoints
       [SUCCESS]  400 successful connections

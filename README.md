@@ -75,7 +75,8 @@ An example of configuration file is:
             "endpoints-increment"      : 0,
             "concurrency-increment"    : 0,
             "ws-connection-timeout-ms" : 1000,
-            "association-ttl-s"        : 5
+            "association-ttl-s"        : 5,
+            "persist-connections"      : true
         }
     }
 ```

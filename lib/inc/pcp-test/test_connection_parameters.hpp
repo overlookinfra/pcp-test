@@ -19,6 +19,7 @@ extern const std::string ENDPOINTS_INCREMENT;
 extern const std::string CONCURRENCY_INCREMENT;
 extern const std::string WS_CONNECTION_TIMEOUT_MS;
 extern const std::string ASSOCIATION_TTL_S;
+extern const std::string PERSIST_CONNECTIONS;
 
 }  // namespace connection_test_parameters
 }  // namespace pcp_test

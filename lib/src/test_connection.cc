@@ -166,7 +166,9 @@ void connection_test::display_setup()
         << "  " << inter_endpoint_pause_ms_
         << " ms pause between each endpoint connection\n"
         << "  WebSocket connection timeout " << ws_connection_timeout_ms_
-        << " ms; Association Request TTL " << association_ttl_s_ << " s\n\n";
+        << " ms; Association Request TTL " << association_ttl_s_ << " s\n"
+        << "  send WebSocket pings for keeping connections alive "
+        << (p.get<bool>(conn_par::PERSIST_CONNECTIONS) ? "yes" : "no") << "\n\n";
 }
 
 void connection_test::display_execution_time(
@@ -198,7 +200,8 @@ void connection_test::display_execution_time(
 // Connection task
 
 int connect_clients_serially(std::vector<std::shared_ptr<client>> client_ptrs,
-                             const unsigned int inter_endpoint_pause_ms)
+                             const unsigned int inter_endpoint_pause_ms,
+                             const bool persist_connections)
 {
     int num_failures {0};
     static std::chrono::milliseconds pause {inter_endpoint_pause_ms};
@@ -211,8 +214,12 @@ int connect_clients_serially(std::vector<std::shared_ptr<client>> client_ptrs,
             associated &= e_p->connector.isAssociated();
             std::this_thread::sleep_for(pause);
             associated &= e_p->connector.isAssociated();
-            if (!associated)
+
+            if (!associated) {
                 num_failures++;
+            } else if (persist_connections) {
+                e_p->connector.startMonitoring(1);
+            }
         } catch (PCPClient::connection_error) {
             num_failures++;
         }
@@ -225,10 +232,13 @@ connection_test_result connection_test::perform_current_run()
 {
     connection_test_result results {current_run_};
     using task_type = int(std::vector<std::shared_ptr<client>>,
-                          const unsigned int);
+                          const unsigned int,
+                          const bool);
     std::vector<std::future<int>> task_futures {};
     std::vector<std::shared_ptr<client>> all_client_ptrs {};
     std::string c_type {"CONNECTION_TEST_CLIENT"};
+    static const bool persist_connections {
+        app_opt_.connection_test_parameters.get<bool>(conn_par::PERSIST_CONNECTIONS)};
     client_configuration c_cfg {"0000agent",
                                 c_type,
                                 app_opt_.broker_ws_uris,
@@ -284,7 +294,8 @@ connection_test_result connection_test::perform_current_run()
         try {
             std::thread(std::move(connection_task),
                         std::move(task_client_ptrs),
-                        inter_endpoint_pause_ms_).detach();
+                        inter_endpoint_pause_ms_,
+                        persist_connections).detach();
             LOG_DEBUG("Run %1% - started connection task n.%2%",
                       current_run_.idx, task_idx + 1);
         } catch (std::exception& e) {
@@ -297,8 +308,13 @@ connection_test_result connection_test::perform_current_run()
 
     // Wait for threads to complete and get the number of failures (as futures)
 
+    // TODO(ale): use the actual association timeout (not the TTL, see PCP-452)
+
+    // NB: the 2 factor is due to the 2 loops, one for connecting
+    // and start monitoring, the other for stop monitoring
+    // (triggered by the client dtor)
     std::chrono::seconds timeout_s {
-        5 + static_cast<int>(current_run_.num_endpoints * ws_connection_timeout_ms_ / 1000)};
+        5 + static_cast<int>((2 * current_run_.num_endpoints * ws_connection_timeout_ms_) / 1000)};
 
     for (std::size_t thread_idx = 0; thread_idx < task_futures.size(); thread_idx++) {
         if (task_futures[thread_idx].wait_for(timeout_s) != std::future_status::ready) {

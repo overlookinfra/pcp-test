@@ -30,7 +30,8 @@ SCENARIO("client ctor", "[configuration]")
     pcp_test::client_configuration cc {std::string("0000agent"),
                                        client_type,
                                        uris,
-                                       certs_path};
+                                       certs_path,
+                                       1000, 12, 5, 5};
 
     REQUIRE_NOTHROW(pcp_test::client {std::move(cc)});
 }

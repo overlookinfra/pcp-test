@@ -59,16 +59,17 @@ PCPClient::Schema connection_test_parameters()
 {
     PCPClient::Schema schema {CONNECTION_TEST_PARAMETERS, C_Type::Json};
 
-    schema.addConstraint(conn_par::NUM_RUNS,                 T_Constraint::Int, true);
-    schema.addConstraint(conn_par::INTER_RUN_PAUSE_MS,       T_Constraint::Int, true);
-    schema.addConstraint(conn_par::NUM_ENDPOINTS,            T_Constraint::Int, true);
-    schema.addConstraint(conn_par::INTER_ENDPOINT_PAUSE_MS,  T_Constraint::Int, true);
-    schema.addConstraint(conn_par::CONCURRENCY,              T_Constraint::Int, true);
-    schema.addConstraint(conn_par::ENDPOINTS_INCREMENT,      T_Constraint::Int, true);
-    schema.addConstraint(conn_par::CONCURRENCY_INCREMENT,    T_Constraint::Int, true);
-    schema.addConstraint(conn_par::WS_CONNECTION_TIMEOUT_MS, T_Constraint::Int, true);
-    schema.addConstraint(conn_par::ASSOCIATION_TTL_S,        T_Constraint::Int, true);
-    schema.addConstraint(conn_par::PERSIST_CONNECTIONS,      T_Constraint::Bool, true);
+    schema.addConstraint(conn_par::NUM_RUNS,                  T_Constraint::Int, true);
+    schema.addConstraint(conn_par::INTER_RUN_PAUSE_MS,        T_Constraint::Int, true);
+    schema.addConstraint(conn_par::NUM_ENDPOINTS,             T_Constraint::Int, true);
+    schema.addConstraint(conn_par::INTER_ENDPOINT_PAUSE_MS,   T_Constraint::Int, true);
+    schema.addConstraint(conn_par::CONCURRENCY,               T_Constraint::Int, true);
+    schema.addConstraint(conn_par::ENDPOINTS_INCREMENT,       T_Constraint::Int, true);
+    schema.addConstraint(conn_par::CONCURRENCY_INCREMENT,     T_Constraint::Int, true);
+    schema.addConstraint(conn_par::WS_CONNECTION_TIMEOUT_MS,  T_Constraint::Int, true);
+    schema.addConstraint(conn_par::ASSOCIATION_TIMEOUT_S,     T_Constraint::Int, true);
+    schema.addConstraint(conn_par::ASSOCIATION_REQUEST_TTL_S, T_Constraint::Int, true);
+    schema.addConstraint(conn_par::PERSIST_CONNECTIONS,       T_Constraint::Bool, true);
 
     return schema;
 }

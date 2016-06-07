@@ -114,8 +114,10 @@ connection_test::connection_test(const application_options& a_o)
           app_opt_.connection_test_parameters.get<int>(conn_par::INTER_ENDPOINT_PAUSE_MS))},
       ws_connection_timeout_ms_ {static_cast<unsigned int>(
           app_opt_.connection_test_parameters.get<int>(conn_par::WS_CONNECTION_TIMEOUT_MS))},
-      association_ttl_s_ {static_cast<unsigned int>(
-          app_opt_.connection_test_parameters.get<int>(conn_par::ASSOCIATION_TTL_S))},
+      association_timeout_s_ {static_cast<unsigned int>(
+          app_opt_.connection_test_parameters.get<int>(conn_par::ASSOCIATION_TIMEOUT_S))},
+      association_request_ttl_s_ {static_cast<unsigned int>(
+          app_opt_.connection_test_parameters.get<int>(conn_par::ASSOCIATION_REQUEST_TTL_S))},
       current_run_ {app_opt_},
       results_file_name_ {(boost::format("connection_test_%1%.csv")
                            % util::get_short_datetime()).str()},
@@ -165,9 +167,10 @@ void connection_test::display_setup()
         << inter_run_pause_ms_ << " ms pause between each run\n"
         << "  " << inter_endpoint_pause_ms_
         << " ms pause between each endpoint connection\n"
-        << "  WebSocket connection timeout " << ws_connection_timeout_ms_
-        << " ms; Association Request TTL " << association_ttl_s_ << " s\n"
-        << "  send WebSocket pings for keeping connections alive "
+        << "  WebSocket connection timeout " << ws_connection_timeout_ms_ << " ms\n"
+        << "  Association timeout " << association_timeout_s_
+        << " s; Association Request TTL " << association_request_ttl_s_ << " s\n"
+        << "  send WebSocket pings for keeping connections alive: "
         << (p.get<bool>(conn_par::PERSIST_CONNECTIONS) ? "yes" : "no") << "\n\n";
 }
 
@@ -228,6 +231,8 @@ int connect_clients_serially(std::vector<std::shared_ptr<client>> client_ptrs,
     return num_failures;
 }
 
+static constexpr uint32_t MIN_CONNECTION_TASK_TIMEOUT_S {5};
+
 connection_test_result connection_test::perform_current_run()
 {
     connection_test_result results {current_run_};
@@ -244,7 +249,8 @@ connection_test_result connection_test::perform_current_run()
                                 app_opt_.broker_ws_uris,
                                 app_opt_.certificates_dir,
                                 ws_connection_timeout_ms_,
-                                association_ttl_s_};
+                                association_timeout_s_,
+                                association_request_ttl_s_};
 
     // Spawn concurrent tasks
 
@@ -308,13 +314,12 @@ connection_test_result connection_test::perform_current_run()
 
     // Wait for threads to complete and get the number of failures (as futures)
 
-    // TODO(ale): use the actual association timeout (not the TTL, see PCP-452)
-
     // NB: the 2 factor is due to the 2 loops, one for connecting
     // and start monitoring, the other for stop monitoring
     // (triggered by the client dtor)
     std::chrono::seconds timeout_s {
-        5 + static_cast<int>((2 * current_run_.num_endpoints * ws_connection_timeout_ms_) / 1000)};
+        MIN_CONNECTION_TASK_TIMEOUT_S
+        + (2 * current_run_.num_endpoints * association_timeout_s_)};
 
     for (std::size_t thread_idx = 0; thread_idx < task_futures.size(); thread_idx++) {
         if (task_futures[thread_idx].wait_for(timeout_s) != std::future_status::ready) {

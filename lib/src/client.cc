@@ -16,7 +16,9 @@ client::client(client_configuration cfg)
                  configuration.ca,
                  configuration.crt,
                  configuration.key,
-                 configuration.connection_timeout_ms}
+                 configuration.connection_timeout_ms,
+                 configuration.association_timeout_s,
+                 configuration.association_request_ttl_s}
 {
     connector.registerMessageCallback(
             schemas::request(),
@@ -37,7 +39,7 @@ void client::send_request(const message& request,
     try {
         connector.send(endpoints,
                        schemas::REQUEST_TYPE,
-                       configuration.message_timeout_s,
+                       configuration.message_ttl_s,
                        request.get_data());
         LOG_DEBUG("Sent request %1%", request.transaction());
     } catch (PCPClient::connection_error& e) {
@@ -51,7 +53,7 @@ void client::reply(const message& request)
     try {
         connector.send({request.sender()},
                        schemas::RESPONSE_TYPE,
-                       configuration.message_timeout_s,
+                       configuration.message_ttl_s,
                        request.get_data());
         LOG_DEBUG("Replied to request %1%", request.transaction());
     } catch (PCPClient::connection_error& e) {
@@ -69,7 +71,7 @@ void client::reply_with_error(const message& request,
     try {
         connector.send({request.sender()},
                        schemas::ERROR_TYPE,
-                       configuration.message_timeout_s,
+                       configuration.message_ttl_s,
                        std::move(data));
         LOG_DEBUG("Replied to request %1% with an error", request.transaction());
     } catch (PCPClient::connection_error& e) {

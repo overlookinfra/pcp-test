@@ -64,7 +64,8 @@ class connection_test
     unsigned int inter_run_pause_ms_;
     unsigned int inter_endpoint_pause_ms_;
     unsigned int ws_connection_timeout_ms_;
-    unsigned int association_ttl_s_;
+    unsigned int association_timeout_s_;
+    unsigned int association_request_ttl_s_;
     connection_test_run current_run_;
     std::string results_file_name_;
     boost::nowide::ofstream results_file_stream_;

@@ -27,7 +27,8 @@ initialization (`ws-connection-timeout-ms` in milliseconds).
 
 PCP Association requests are sent with a given TTL (`association-ttl-s` in
 seconds). Note that such TTL is only meant for the processing of the request
-message; it's not referred to the entire association process.
+message; instead, the timeout for the entire association process can be
+specified by `association-timeout-s` (in seconds).
 
 Note that the `broker-ws-uris` is a global option, whereas all other options
 mentioned in this section are specific to the Connection Test and must be
@@ -42,8 +43,11 @@ Also, all options have integer arguments. The complete list of options is:
  - `endpoints-increment`
  - `concurrency-increment`
  - `ws-connection-timeout-ms`
- - `association-ttl-s`
+ - `association-timeout-s`
+ - `association-request-ttl-s`
  - `persist-connections`
+
+Once again, ALL options must be specified in your configuration file.
 
 ### Result Metrics
 
@@ -61,7 +65,8 @@ An example of output on standard out is the following:
       4 concurrent sets (+0 per run) of 100 endpoints (+100 per run)
       5 runs, 30000 ms pause between each run
       50 ms pause between each endpoint connection
-      WebSocket connection timeout 2500 ms; Association Request TTL 5 s
+      WebSocket connection timeout 2500 ms
+      Association timeout 10 s, Association Request TTL 5 s
       send WebSocket pings for keep-alive: yes
 
     Starting run 1: 4 concurrent sets of 100 endpoints

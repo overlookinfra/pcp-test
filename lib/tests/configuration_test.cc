@@ -22,11 +22,11 @@ SCENARIO("configuration::setup_logging", "[configuration]") {
     auto log_file = (TEST_PATH / "test.log").string();
 
     SECTION("can setup leatherman's logging") {
-        REQUIRE_NOTHROW(configuration::setup_logging(log_file, "warning"));
+        REQUIRE_NOTHROW(configuration::setup_logging(log_file, "warning", "info"));
     }
 
     SECTION("correctly sets the log level"){
-        configuration::setup_logging(log_file, "fatal");
+        configuration::setup_logging(log_file, "fatal", "debug");
         REQUIRE(lth_log::get_level() == lth_log::log_level::fatal);
     }
 
@@ -118,6 +118,7 @@ SCENARIO("configuration::validate_application_options", "[configuration]") {
     application_options ao {};
     ao.test = "trivial";
     ao.loglevel = "info";
+    ao.client_loglevel = "debug";
     ao.configfile = (CONFIG_PATH / "good.json").string();
     ao.logfile = (CONFIG_PATH / "good.log").string();
     ao.broker_ws_uris = {"wss://localhost:8142/pcp/vNext",
@@ -137,6 +138,11 @@ SCENARIO("configuration::validate_application_options", "[configuration]") {
                           configuration_error);
     }
 
+    SECTION("throws a configuration_error in case of invalid client log level") {
+        ao.client_loglevel = "super_logging";
+        REQUIRE_THROWS_AS(configuration::validate_application_options(ao),
+                          configuration_error);
+    }
 
     SECTION("throws a configuration_error in case of bad WS URI") {
         SECTION("bad protocol") {

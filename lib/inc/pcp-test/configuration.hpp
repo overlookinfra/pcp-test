@@ -12,8 +12,10 @@
 namespace pcp_test {
 namespace configuration {
 
-// Throw a std::out_of_range in case of invalid loglevel.
-void setup_logging(const std::string& logfile, const std::string& loglevel);
+// Throw a std::out_of_range in case of invalid log level.
+void setup_logging(const std::string& logfile,
+                   const std::string& loglevel,
+                   const std::string& client_loglevel);
 
 // Parse the command line arguments and return an
 // application_options instance.

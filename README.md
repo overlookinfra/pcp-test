@@ -45,7 +45,8 @@ certificate files are explained in this [document](doc/certificates.md).
 ```
       -h [ --help ]                  produce help message
       -v [ --version ]               print the version and exit
-      --loglevel arg                 log level (none, trace, debug, info, warning, error, fatal)
+      --loglevel arg                 pcp-test log level (none, trace, debug, info, warning, error, fatal)
+      --client-loglevel arg          client lib log level (none, trace, debug, info, warning, error, fatal)
       --logfile arg                  log file
       --config-file arg              configuration file (mandatory);
                                      defaults to /etc/puppetlabs/pcp-test/pcp-test.conf
@@ -62,10 +63,11 @@ specified in the configuration file, without the double hyphen prefix.
 An example of configuration file is:
 ```
     {
-        "logfile"  : "~/logs/pcp-test.log",
-        "loglevel" : "trace",
-        "broker-ws-uris" : ["localhost",
-                            "broker.example.com"],
+        "logfile"         : "~/logs/pcp-test.log",
+        "loglevel"        : "trace",
+        "client-loglevel" : "info",
+        "broker-ws-uris"  : ["localhost",
+                             "broker.example.com"],
         "connection-test-parameters" : {
             "num-runs"                   : 1,
             "inter-run-pause-ms"         : 5000,

@@ -50,6 +50,7 @@ const std::string DEFAULT_CERTIFICATES_DIR {
         (fs::path(PCP_TEST_ROOT_PATH) / "dev-resources" / "pcp-certificates").string()};
 
 const std::string DEFAULT_LOGLEVEL_TEXT {"info"};
+const std::string DEFAULT_CLIENT_LOGLEVEL_TEXT {"warning"};
 const std::string DEFAULT_BROKER_WS_URI {"wss://localhost:8142/pcp/"};
 
 const std::string URL_REGEX             {"^wss:\\/\\/\\S+:\\d+\\/\\S+"};
@@ -160,14 +161,17 @@ static const std::map<std::string, lth_log::log_level> option_to_log_level {
         { "error",   lth_log::log_level::error },
         { "fatal",   lth_log::log_level::fatal }};
 
-void setup_logging(const std::string& logfile_, const std::string& loglevel_)
+void setup_logging(const std::string& logfile_,
+                   const std::string& loglevel_,
+                   const std::string& client_loglevel_)
 {
     assert(!logfile_.empty());
     auto lvl = option_to_log_level.at(loglevel_);
+    auto client_lvl = option_to_log_level.at(client_loglevel_);
     std::ostream* o_stream {nullptr};
     f_stream.open(logfile_.c_str(), std::ios_base::app);
     o_stream = &f_stream;
-    PCPClient::Util::setupLogging(*o_stream, true, lvl);
+    PCPClient::Util::setupLogging(*o_stream, true, client_lvl);
     lth_log::setup_logging(*o_stream);
     lth_log::set_colorization(true);
     lth_log::set_level(lvl);
@@ -183,7 +187,10 @@ application_options get_application_options(int argc, char** argv)
             ("version,v", "print the version and exit")
             ("loglevel",
              po::value<std::string>()->default_value(""),
-             "log level (none, trace, debug, info, warning, error, fatal)")
+             "pcp-test log level (none, trace, debug, info, warning, error, fatal)")
+            ("client-loglevel",
+             po::value<std::string>()->default_value(""),
+             "client lib log level (none, trace, debug, info, warning, error, fatal)")
             ("logfile",
              po::value<std::string>()->default_value(""),
              "log file")
@@ -241,10 +248,11 @@ application_options get_application_options(int argc, char** argv)
         exit(EXIT_SUCCESS);
     }
 
-    a_o.logfile    = vm["logfile"].as<std::string>();
-    a_o.loglevel   = vm["loglevel"].as<std::string>();
-    a_o.test       = vm["test"].as<std::string>();
-    a_o.configfile = vm["config-file"].as<std::string>();
+    a_o.logfile         = vm["logfile"].as<std::string>();
+    a_o.loglevel        = vm["loglevel"].as<std::string>();
+    a_o.client_loglevel = vm["client-loglevel"].as<std::string>();
+    a_o.test            = vm["test"].as<std::string>();
+    a_o.configfile      = vm["config-file"].as<std::string>();
 
     if (vm.count("broker-ws-uris")) {
         a_o.broker_ws_uris = vm["broker-ws-uris"].as<std::vector<std::string>>();
@@ -320,6 +328,14 @@ void parse_configfile_and_process_options(application_options& a_o) {
         }
     }
 
+    if (a_o.client_loglevel.empty()) {
+        if (config_json.includes("client-loglevel")) {
+            a_o.client_loglevel = config_json.get<std::string>("client-loglevel");
+        } else {
+            a_o.client_loglevel = DEFAULT_CLIENT_LOGLEVEL_TEXT;
+        }
+    }
+
     a_o.certificates_dir = lth_file::tilde_expand(a_o.certificates_dir);
     a_o.results_dir      = lth_file::tilde_expand(a_o.results_dir);
 
@@ -346,9 +362,14 @@ void validate_application_options(application_options& a_o)
         throw configuration_error("log directory does not exist");
 
     // log level
+
     if (option_to_log_level.find(a_o.loglevel) == option_to_log_level.end())
         throw configuration_error((boost::format("invalid log level (%1%)")
                                    % a_o.loglevel).str());
+
+    if (option_to_log_level.find(a_o.client_loglevel) == option_to_log_level.end())
+        throw configuration_error((boost::format("invalid client lib log level (%1%)")
+                                   % a_o.client_loglevel).str());
 
     // broker WebSocket URIs
     boost::regex uri_re {URL_REGEX};

@@ -15,10 +15,11 @@ namespace pcp_test {
 
 struct application_options
 {
-    std::string test;           // the test that will be executed
-    std::string logfile;        // path to the log file
-    std::string loglevel;       // log level
-    std::string configfile;     // path to the configuration file
+    std::string test;             // the test that will be executed
+    std::string logfile;          // path to the log file
+    std::string loglevel;         // log level of pcp-test
+    std::string client_loglevel;  // log level of cpp-pcp-client
+    std::string configfile;       // path to the configuration file
 
     std::vector<std::string> broker_ws_uris;    // WS URIs of PCP brokers
     std::string certificates_dir;               // SSL certs dir
@@ -35,6 +36,7 @@ struct application_options
     {
         static std::set<std::string> option_names {"logfile",
                                                    "loglevel",
+                                                   "client-loglevel",
                                                    "configfile",
                                                    "broker-ws-uris",
                                                    "certificates-dir",

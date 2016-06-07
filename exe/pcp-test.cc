@@ -49,7 +49,7 @@ int main(int argc, char **argv)
         lth_log::colorize(boost::nowide::cerr);
         exit(EXIT_FAILURE);
     }
-    configuration::setup_logging(a_o.logfile, a_o.loglevel);
+    configuration::setup_logging(a_o.logfile, a_o.loglevel, a_o.client_loglevel);
 
     try {
         start(a_o);

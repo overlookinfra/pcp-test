@@ -228,6 +228,16 @@ int connect_clients_serially(std::vector<std::shared_ptr<client>> client_ptrs,
         }
     }
 
+    for (auto e_p : client_ptrs) {
+        try {
+            e_p->connector.stopMonitoring();
+        } catch (PCPClient::connection_not_init_error) {
+            // Skip, already threw an exception above.
+        } catch (PCPClient::connection_error) {
+            num_failures++;
+        }
+    }
+
     return num_failures;
 }
 

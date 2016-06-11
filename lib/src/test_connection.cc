@@ -21,7 +21,7 @@
 #include <memory>
 #include <vector>
 
-// NOTE(ale): boost::future/packaged_task have different semantics than std::
+// NOTE(ale): boost::future/async have different semantics than std::
 #include <thread>
 #include <future>
 
@@ -202,17 +202,16 @@ void connection_test::display_execution_time(
 
 // Connection task
 
-int connect_clients_serially(std::vector<std::shared_ptr<client>> client_ptrs,
+int connect_clients_serially(std::vector<std::unique_ptr<client>> client_ptrs,
                              const unsigned int inter_endpoint_pause_ms,
                              const bool persist_connections)
 {
     int num_failures {0};
     static std::chrono::milliseconds pause {inter_endpoint_pause_ms};
-    bool associated {};
 
-    for (auto e_p : client_ptrs) {
+    for (auto &e_p : client_ptrs) {
         try {
-            associated = true;
+            bool associated = true;
             e_p->connector.connect(1);
             associated &= e_p->connector.isAssociated();
             std::this_thread::sleep_for(pause);
@@ -228,7 +227,7 @@ int connect_clients_serially(std::vector<std::shared_ptr<client>> client_ptrs,
         }
     }
 
-    for (auto e_p : client_ptrs) {
+    for (auto &e_p : client_ptrs) {
         try {
             e_p->connector.stopMonitoring();
         } catch (PCPClient::connection_not_init_error) {
@@ -246,11 +245,7 @@ static constexpr uint32_t MIN_CONNECTION_TASK_TIMEOUT_S {5};
 connection_test_result connection_test::perform_current_run()
 {
     connection_test_result results {current_run_};
-    using task_type = int(std::vector<std::shared_ptr<client>>,
-                          const unsigned int,
-                          const bool);
     std::vector<std::future<int>> task_futures {};
-    std::vector<std::shared_ptr<client>> all_client_ptrs {};
     std::string c_type {"CONNECTION_TEST_CLIENT"};
     static const bool persist_connections {
         app_opt_.connection_test_parameters.get<bool>(conn_par::PERSIST_CONNECTIONS)};
@@ -265,14 +260,13 @@ connection_test_result connection_test::perform_current_run()
     // Spawn concurrent tasks
 
     auto add_client =
-        [&c_cfg, &all_client_ptrs] (
+        [&c_cfg] (
                 std::string name,
-                std::vector<std::shared_ptr<client>>& task_client_ptrs) -> void
+                std::vector<std::unique_ptr<client>>& task_client_ptrs) -> void
         {
             c_cfg.common_name = name;
             c_cfg.update_cert_paths();
-            auto c_ptr = std::make_shared<client>(c_cfg);
-            all_client_ptrs.push_back(c_ptr);
+            auto c_ptr = std::unique_ptr<client>(new client(c_cfg));
             task_client_ptrs.push_back(std::move(c_ptr));
         };
 
@@ -299,19 +293,15 @@ connection_test_result connection_test::perform_current_run()
         };
 
     for (auto task_idx = 0; task_idx < current_run_.concurrency; task_idx++) {
-        std::vector<std::shared_ptr<client>> task_client_ptrs {};
+        std::vector<std::unique_ptr<client>> task_client_ptrs {};
 
         for (auto idx = 0; idx < current_run_.num_endpoints; idx++)
             add_client(get_name(), task_client_ptrs);
 
-        std::packaged_task<task_type> connection_task {&connect_clients_serially};
-        task_futures.push_back(connection_task.get_future());
-
         try {
-            std::thread(std::move(connection_task),
-                        std::move(task_client_ptrs),
-                        inter_endpoint_pause_ms_,
-                        persist_connections).detach();
+            task_futures.push_back(
+                std::async(std::launch::async, &connect_clients_serially,
+                           std::move(task_client_ptrs), inter_endpoint_pause_ms_, persist_connections));
             LOG_DEBUG("Run %1% - started connection task n.%2%",
                       current_run_.idx, task_idx + 1);
         } catch (std::exception& e) {
@@ -323,13 +313,9 @@ connection_test_result connection_test::perform_current_run()
     }
 
     // Wait for threads to complete and get the number of failures (as futures)
-
-    // NB: the 2 factor is due to the 2 loops, one for connecting
-    // and start monitoring, the other for stop monitoring
-    // (triggered by the client dtor)
     std::chrono::seconds timeout_s {
         MIN_CONNECTION_TASK_TIMEOUT_S
-        + (2 * current_run_.num_endpoints * association_timeout_s_)};
+        + (current_run_.num_endpoints * association_timeout_s_)};
 
     for (std::size_t thread_idx = 0; thread_idx < task_futures.size(); thread_idx++) {
         if (task_futures[thread_idx].wait_for(timeout_s) != std::future_status::ready) {

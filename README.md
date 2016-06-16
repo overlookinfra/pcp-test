@@ -30,6 +30,21 @@ The directory that contains the certificates can be specified by the
 `pcp-test/dev-resources/pcp-certificates`. The requirements for storing the
 certificate files are explained in this [document](doc/certificates.md).
 
+The compressed file `pcp-certificates.tar.gz`, located in the
+[test-resources](test-resources) directory, includes SSL certificates that
+allow executing pcp-test with up to 6000 pairs of agent / controllers nodes.
+
+To retrieve `pcp-certificates.tar.gz` you need to use:
+```
+    git lfs fetch && git lfs checkout
+```
+You can then un-archive it in the `<PCP_TEST_ROOT>/dev-resources`; by doing so,
+you'll have the certificates directory tree in the default `--certificates-dir`
+path (see the option description below). Note that the `dev-resources` directory
+is included in pcp-test's `.gitignore`, so it won't affect update operations on
+your local repo. In alternative, if you want to use a different location, you
+just need to specify it with `--certificates-dir`.
+
 ## Using pcp-test
 
 `pcp-test` is invoked by command line as:

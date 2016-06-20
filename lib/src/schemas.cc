@@ -66,11 +66,11 @@ PCPClient::Schema connection_test_parameters()
     schema.addConstraint(conn_par::CONCURRENCY,                    T_Constraint::Int, true);
     schema.addConstraint(conn_par::ENDPOINTS_INCREMENT,            T_Constraint::Int, true);
     schema.addConstraint(conn_par::CONCURRENCY_INCREMENT,          T_Constraint::Int, true);
-    schema.addConstraint(conn_par::WS_CONNECTION_TIMEOUT_MS,       T_Constraint::Int, true);
-    schema.addConstraint(conn_par::WS_CONNECTION_CHECK_INTERVAL_S, T_Constraint::Int, true);
-    schema.addConstraint(conn_par::ASSOCIATION_TIMEOUT_S,          T_Constraint::Int, true);
-    schema.addConstraint(conn_par::ASSOCIATION_REQUEST_TTL_S,      T_Constraint::Int, true);
-    schema.addConstraint(conn_par::PERSIST_CONNECTIONS,            T_Constraint::Bool, true);
+    schema.addConstraint(conn_par::WS_CONNECTION_TIMEOUT_MS,       T_Constraint::Int, false);
+    schema.addConstraint(conn_par::WS_CONNECTION_CHECK_INTERVAL_S, T_Constraint::Int, false);
+    schema.addConstraint(conn_par::ASSOCIATION_TIMEOUT_S,          T_Constraint::Int, false);
+    schema.addConstraint(conn_par::ASSOCIATION_REQUEST_TTL_S,      T_Constraint::Int, false);
+    schema.addConstraint(conn_par::PERSIST_CONNECTIONS,            T_Constraint::Bool, false);
 
     return schema;
 }

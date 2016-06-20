@@ -114,17 +114,30 @@ connection_test::connection_test(const application_options& a_o)
           app_opt_.connection_test_parameters.get<int>(conn_par::INTER_RUN_PAUSE_MS))},
       inter_endpoint_pause_ms_ {static_cast<unsigned int>(
           app_opt_.connection_test_parameters.get<int>(conn_par::INTER_ENDPOINT_PAUSE_MS))},
-      ws_connection_timeout_ms_ {static_cast<unsigned int>(
-          app_opt_.connection_test_parameters.get<int>(conn_par::WS_CONNECTION_TIMEOUT_MS))},
-      association_timeout_s_ {static_cast<unsigned int>(
-          app_opt_.connection_test_parameters.get<int>(conn_par::ASSOCIATION_TIMEOUT_S))},
-      association_request_ttl_s_ {static_cast<unsigned int>(
-          app_opt_.connection_test_parameters.get<int>(conn_par::ASSOCIATION_REQUEST_TTL_S))},
+      ws_connection_timeout_ms_ {
+            app_opt_.connection_test_parameters.includes(conn_par::WS_CONNECTION_TIMEOUT_MS)
+            ? static_cast<unsigned int>(
+                app_opt_.connection_test_parameters.get<int>(conn_par::WS_CONNECTION_TIMEOUT_MS))
+            : DEFAULT_WS_CONNECTION_TIMEOUT_MS},
       ws_connection_check_interval_s_ {
             app_opt_.connection_test_parameters.includes(conn_par::WS_CONNECTION_CHECK_INTERVAL_S)
             ? static_cast<unsigned int>(
                 app_opt_.connection_test_parameters.get<int>(conn_par::WS_CONNECTION_CHECK_INTERVAL_S))
             : DEFAULT_WS_CONNECTION_CHECK_INTERVAL_S},
+      association_timeout_s_ {
+            app_opt_.connection_test_parameters.includes(conn_par::ASSOCIATION_TIMEOUT_S)
+            ? static_cast<unsigned int>(
+                app_opt_.connection_test_parameters.get<int>(conn_par::ASSOCIATION_TIMEOUT_S))
+            : DEFAULT_ASSOCIATION_TIMEOUT_S},
+      association_request_ttl_s_ {
+            app_opt_.connection_test_parameters.includes(conn_par::ASSOCIATION_REQUEST_TTL_S)
+            ? static_cast<unsigned int>(
+                app_opt_.connection_test_parameters.get<int>(conn_par::ASSOCIATION_REQUEST_TTL_S))
+            : DEFAULT_ASSOCIATION_REQUEST_TTL_S},
+      persist_connections_ {
+            app_opt_.connection_test_parameters.includes(conn_par::PERSIST_CONNECTIONS)
+            ? app_opt_.connection_test_parameters.get<bool>(conn_par::PERSIST_CONNECTIONS)
+            : false},
       current_run_ {app_opt_},
       results_file_name_ {(boost::format("connection_test_%1%.csv")
                            % util::get_short_datetime()).str()},

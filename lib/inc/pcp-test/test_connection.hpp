@@ -19,19 +19,22 @@ void run_connection_test(const application_options& a_o);
 
 struct connection_test_run
 {
+  private:
+    int endpoints_increment_;
+    int concurrency_increment_;
+    std::chrono::seconds endpoint_timeout_s_;
+
+  public:
     int idx;
     int num_endpoints;
     int concurrency;
+    std::chrono::seconds timeout_s;
 
     explicit connection_test_run(const application_options& a_o);
 
     connection_test_run& operator++();
 
     std::string to_string() const;
-
-  private:
-    int endpoints_increment_;
-    int concurrency_increment_;
 };
 
 struct connection_test_result

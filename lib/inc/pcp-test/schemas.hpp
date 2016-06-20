@@ -20,8 +20,6 @@ PCPClient::Schema request();
 PCPClient::Schema response();
 PCPClient::Schema error();
 
-extern const std::string CONNECTION_TEST_PARAMETERS;
-
 PCPClient::Schema connection_test_parameters();
 
 }  // namespace schemas

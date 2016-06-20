@@ -11,6 +11,7 @@ const std::string CONCURRENCY {"concurrency"};
 const std::string ENDPOINTS_INCREMENT {"endpoints-increment"};;
 const std::string CONCURRENCY_INCREMENT {"concurrency-increment"};
 const std::string WS_CONNECTION_TIMEOUT_MS {"ws-connection-timeout-ms"};
+const std::string WS_CONNECTION_CHECK_INTERVAL_S {"ws-connection-check-interval-s"};
 const std::string ASSOCIATION_TIMEOUT_S {"association-timeout-s"};
 const std::string ASSOCIATION_REQUEST_TTL_S {"association-request-ttl-s"};
 const std::string PERSIST_CONNECTIONS {"persist-connections"};

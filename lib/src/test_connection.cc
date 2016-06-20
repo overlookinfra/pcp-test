@@ -20,6 +20,8 @@
 
 #include <memory>
 #include <vector>
+#include <algorithm>
+#include <math.h>
 
 // NOTE(ale): boost::future/async have different semantics than std::
 #include <thread>
@@ -43,11 +45,20 @@ void run_connection_test(const application_options& a_o)
 //
 
 connection_test_run::connection_test_run(const application_options& a_o)
-    : idx {1},
+    : endpoints_increment_ {
+        a_o.connection_test_parameters.get<int>(conn_par::ENDPOINTS_INCREMENT)},
+      concurrency_increment_ {
+        a_o.connection_test_parameters.get<int>(conn_par::CONCURRENCY_INCREMENT)},
+      endpoint_timeout_s_ {
+        static_cast<int>(
+            std::max(1.0,
+                     std::ceil(a_o.connection_test_parameters.get<int>(
+                        conn_par::INTER_ENDPOINT_PAUSE_MS) / 1000)))
+        + a_o.connection_test_parameters.get<int>(conn_par::ASSOCIATION_TIMEOUT_S)},
+      idx {1},
       num_endpoints {a_o.connection_test_parameters.get<int>(conn_par::NUM_ENDPOINTS)},
       concurrency {a_o.connection_test_parameters.get<int>(conn_par::CONCURRENCY)},
-      endpoints_increment_ {a_o.connection_test_parameters.get<int>(conn_par::ENDPOINTS_INCREMENT)},
-      concurrency_increment_ {a_o.connection_test_parameters.get<int>(conn_par::CONCURRENCY_INCREMENT)}
+      timeout_s {num_endpoints * endpoint_timeout_s_}
 {
 }
 
@@ -56,13 +67,18 @@ connection_test_run& connection_test_run::operator++()
     idx++;
     num_endpoints += endpoints_increment_;
     concurrency   += concurrency_increment_;
+
+    if (endpoints_increment_)
+        timeout_s += endpoints_increment_ * endpoint_timeout_s_;
+
     return *this;
 }
 
 std::string connection_test_run::to_string() const
 {
-    return (boost::format("run %1%: %2% concurrent sets of %3% endpoints")
-            % idx % concurrency % num_endpoints).str();
+    return (boost::format("run %1%: %2% concurrent sets of %3% endpoints; "
+                          "timeout for each set %4% s")
+            % idx % concurrency % num_endpoints % timeout_s.count()).str();
 }
 
 //
@@ -105,6 +121,9 @@ std::ofstream & operator<< (boost::nowide::ofstream& out,
 // connection_test
 //
 
+static constexpr uint32_t DEFAULT_WS_CONNECTION_TIMEOUT_MS {1500};
+static constexpr uint32_t DEFAULT_WS_CONNECTION_CHECK_INTERVAL_S {15};
+
 connection_test::connection_test(const application_options& a_o)
     : app_opt_(a_o),
       num_runs_ {app_opt_.connection_test_parameters.get<int>(conn_par::NUM_RUNS)},
@@ -112,12 +131,30 @@ connection_test::connection_test(const application_options& a_o)
           app_opt_.connection_test_parameters.get<int>(conn_par::INTER_RUN_PAUSE_MS))},
       inter_endpoint_pause_ms_ {static_cast<unsigned int>(
           app_opt_.connection_test_parameters.get<int>(conn_par::INTER_ENDPOINT_PAUSE_MS))},
-      ws_connection_timeout_ms_ {static_cast<unsigned int>(
-          app_opt_.connection_test_parameters.get<int>(conn_par::WS_CONNECTION_TIMEOUT_MS))},
-      association_timeout_s_ {static_cast<unsigned int>(
-          app_opt_.connection_test_parameters.get<int>(conn_par::ASSOCIATION_TIMEOUT_S))},
-      association_request_ttl_s_ {static_cast<unsigned int>(
-          app_opt_.connection_test_parameters.get<int>(conn_par::ASSOCIATION_REQUEST_TTL_S))},
+      ws_connection_timeout_ms_ {
+            app_opt_.connection_test_parameters.includes(conn_par::WS_CONNECTION_TIMEOUT_MS)
+            ? static_cast<unsigned int>(
+                app_opt_.connection_test_parameters.get<int>(conn_par::WS_CONNECTION_TIMEOUT_MS))
+            : DEFAULT_WS_CONNECTION_TIMEOUT_MS},
+      ws_connection_check_interval_s_ {
+            app_opt_.connection_test_parameters.includes(conn_par::WS_CONNECTION_CHECK_INTERVAL_S)
+            ? static_cast<unsigned int>(
+                app_opt_.connection_test_parameters.get<int>(conn_par::WS_CONNECTION_CHECK_INTERVAL_S))
+            : DEFAULT_WS_CONNECTION_CHECK_INTERVAL_S},
+      association_timeout_s_ {
+            app_opt_.connection_test_parameters.includes(conn_par::ASSOCIATION_TIMEOUT_S)
+            ? static_cast<unsigned int>(
+                app_opt_.connection_test_parameters.get<int>(conn_par::ASSOCIATION_TIMEOUT_S))
+            : DEFAULT_ASSOCIATION_TIMEOUT_S},
+      association_request_ttl_s_ {
+            app_opt_.connection_test_parameters.includes(conn_par::ASSOCIATION_REQUEST_TTL_S)
+            ? static_cast<unsigned int>(
+                app_opt_.connection_test_parameters.get<int>(conn_par::ASSOCIATION_REQUEST_TTL_S))
+            : DEFAULT_ASSOCIATION_REQUEST_TTL_S},
+      persist_connections_ {
+            app_opt_.connection_test_parameters.includes(conn_par::PERSIST_CONNECTIONS)
+            ? app_opt_.connection_test_parameters.get<bool>(conn_par::PERSIST_CONNECTIONS)
+            : false},
       current_run_ {app_opt_},
       results_file_name_ {(boost::format("connection_test_%1%.csv")
                            % util::get_short_datetime()).str()},
@@ -163,15 +200,21 @@ void connection_test::display_setup()
         << p.get<int>(conn_par::CONCURRENCY_INCREMENT) << " per run) of "
         << p.get<int>(conn_par::NUM_ENDPOINTS) << " endpoints (+"
         << p.get<int>(conn_par::ENDPOINTS_INCREMENT) << " per run)\n"
-        << "  " << num_runs_ << " runs, "
-        << inter_run_pause_ms_ << " ms pause between each run\n"
+        << "  " << num_runs_ << " runs, ("
+        << inter_run_pause_ms_ << " + 50 * num_endpoints) ms pause between each run\n"
         << "  " << inter_endpoint_pause_ms_
         << " ms pause between each endpoint connection\n"
         << "  WebSocket connection timeout " << ws_connection_timeout_ms_ << " ms\n"
         << "  Association timeout " << association_timeout_s_
         << " s; Association Request TTL " << association_request_ttl_s_ << " s\n"
-        << "  send WebSocket pings for keeping connections alive: "
-        << (p.get<bool>(conn_par::PERSIST_CONNECTIONS) ? "yes" : "no") << "\n\n";
+        << "  keep WebSocket connections alive: ";
+
+    if (persist_connections_) {
+        boost::nowide::cout << "yes, by pinging every "
+                            << ws_connection_check_interval_s_ << " s\n\n";
+    } else {
+        boost::nowide::cout << "no\n\n";
+    }
 }
 
 void connection_test::display_execution_time(
@@ -204,7 +247,8 @@ void connection_test::display_execution_time(
 
 int connect_clients_serially(std::vector<std::unique_ptr<client>> client_ptrs,
                              const unsigned int inter_endpoint_pause_ms,
-                             const bool persist_connections)
+                             const bool persist_connections,
+                             const uint32_t connection_check_interval_s)
 {
     int num_failures {0};
     static std::chrono::milliseconds pause {inter_endpoint_pause_ms};
@@ -220,7 +264,7 @@ int connect_clients_serially(std::vector<std::unique_ptr<client>> client_ptrs,
             if (!associated) {
                 num_failures++;
             } else if (persist_connections) {
-                e_p->connector.startMonitoring(1);
+                e_p->connector.startMonitoring(1, connection_check_interval_s);
             }
         } catch (PCPClient::connection_error) {
             num_failures++;
@@ -240,17 +284,14 @@ int connect_clients_serially(std::vector<std::unique_ptr<client>> client_ptrs,
     return num_failures;
 }
 
-static constexpr uint32_t MIN_CONNECTION_TASK_TIMEOUT_S {5};
+static const std::string CONNECTION_TEST_CLIENT_TYPE {"CONNECTION_TEST_CLIENT"};
 
 connection_test_result connection_test::perform_current_run()
 {
     connection_test_result results {current_run_};
     std::vector<std::future<int>> task_futures {};
-    std::string c_type {"CONNECTION_TEST_CLIENT"};
-    static const bool persist_connections {
-        app_opt_.connection_test_parameters.get<bool>(conn_par::PERSIST_CONNECTIONS)};
     client_configuration c_cfg {"0000agent",
-                                c_type,
+                                CONNECTION_TEST_CLIENT_TYPE,
                                 app_opt_.broker_ws_uris,
                                 app_opt_.certificates_dir,
                                 ws_connection_timeout_ms_,
@@ -300,8 +341,12 @@ connection_test_result connection_test::perform_current_run()
 
         try {
             task_futures.push_back(
-                std::async(std::launch::async, &connect_clients_serially,
-                           std::move(task_client_ptrs), inter_endpoint_pause_ms_, persist_connections));
+                std::async(std::launch::async,
+                           &connect_clients_serially,
+                           std::move(task_client_ptrs),
+                           inter_endpoint_pause_ms_,
+                           persist_connections_,
+                           ws_connection_check_interval_s_));
             LOG_DEBUG("Run %1% - started connection task n.%2%",
                       current_run_.idx, task_idx + 1);
         } catch (std::exception& e) {
@@ -313,12 +358,8 @@ connection_test_result connection_test::perform_current_run()
     }
 
     // Wait for threads to complete and get the number of failures (as futures)
-    std::chrono::seconds timeout_s {
-        MIN_CONNECTION_TASK_TIMEOUT_S
-        + (current_run_.num_endpoints * association_timeout_s_)};
-
     for (std::size_t thread_idx = 0; thread_idx < task_futures.size(); thread_idx++) {
-        if (task_futures[thread_idx].wait_for(timeout_s) != std::future_status::ready) {
+        if (task_futures[thread_idx].wait_for(current_run_.timeout_s) != std::future_status::ready) {
             LOG_DEBUG("run #%1% - thread  %2% timed out", current_run_.idx, thread_idx);
             results.num_failures += current_run_.num_endpoints;
         } else {

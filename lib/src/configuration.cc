@@ -3,6 +3,7 @@
 #include <pcp-test/errors.hpp>
 #include <pcp-test/schemas.hpp>
 #include <pcp-test/test_connection_parameters.hpp>
+#include <pcp-test/configuration_parameters.hpp>
 
 #include <pcp-test/root_path.h>
 
@@ -35,13 +36,14 @@
 namespace pcp_test {
 namespace configuration {
 
-namespace lth_log  = leatherman::logging;
-namespace lth_file = leatherman::file_util;
-namespace lth_loc  = leatherman::locale;
-namespace lth_jc   = leatherman::json_container;
-namespace po       = boost::program_options;
-namespace fs       = boost::filesystem;
-namespace conn_par = pcp_test::connection_test_parameters;
+namespace lth_log    = leatherman::logging;
+namespace lth_file   = leatherman::file_util;
+namespace lth_loc    = leatherman::locale;
+namespace lth_jc     = leatherman::json_container;
+namespace po         = boost::program_options;
+namespace fs         = boost::filesystem;
+namespace conn_par   = pcp_test::connection_test_parameters;
+namespace config_par = pcp_test::configuration_parameters;
 
 const std::string DEFAULT_CONFIGFILE  {"/etc/puppetlabs/pcp-test/pcp-test.conf"};
 const std::string DEFAULT_LOGFILE     {"/var/log/puppetlabs/pcp-test/pcp-test.log"};
@@ -185,26 +187,26 @@ application_options get_application_options(int argc, char** argv)
     visible_options.add_options()
             ("help,h", "produce help message")
             ("version,v", "print the version and exit")
-            ("loglevel",
+            (config_par::LOGLEVEL.c_str(),
              po::value<std::string>()->default_value(""),
              "pcp-test log level (none, trace, debug, info, warning, error, fatal)")
             ("client-loglevel",
              po::value<std::string>()->default_value(""),
              "client lib log level (none, trace, debug, info, warning, error, fatal)")
-            ("logfile",
+            (config_par::LOGFILE.c_str(),
              po::value<std::string>()->default_value(""),
              "log file")
-            ("config-file",
+            (config_par::CONFIG_FILE.c_str(),
              po::value<std::string>()->default_value(DEFAULT_CONFIGFILE),
              "mandatory configuration file")
-            ("broker-ws-uris,u",
+            (config_par::BROKER_WS_URIS.c_str(),
              po::value<std::vector<std::string>>()->multitoken(),
              "PCP broker WebSocket URIs")
-            ("certificates-dir",
+            (config_par::CERTIFICATES_DIR.c_str(),
              po::value<std::string>()->default_value(DEFAULT_CERTIFICATES_DIR),
              "SSL certificates path (see doc for the expected directory tree "
              "structure)")
-            ("results-dir",
+            (config_par::RESULTS_DIR.c_str(),
              po::value<std::string>()->default_value(DEFAULT_RESULTS_DIR),
              "results directory");
 
@@ -248,20 +250,20 @@ application_options get_application_options(int argc, char** argv)
         exit(EXIT_SUCCESS);
     }
 
-    a_o.logfile         = vm["logfile"].as<std::string>();
-    a_o.loglevel        = vm["loglevel"].as<std::string>();
-    a_o.client_loglevel = vm["client-loglevel"].as<std::string>();
+    a_o.logfile         = vm[config_par::LOGFILE].as<std::string>();
+    a_o.loglevel        = vm[config_par::LOGLEVEL].as<std::string>();
+    a_o.client_loglevel = vm[config_par::CLIENT_LOGLEVEL].as<std::string>();
     a_o.test            = vm["test"].as<std::string>();
-    a_o.configfile      = vm["config-file"].as<std::string>();
+    a_o.configfile      = vm[config_par::CONFIG_FILE].as<std::string>();
 
-    if (vm.count("broker-ws-uris")) {
-        a_o.broker_ws_uris = vm["broker-ws-uris"].as<std::vector<std::string>>();
+    if (vm.count(config_par::BROKER_WS_URIS)) {
+        a_o.broker_ws_uris = vm[config_par::BROKER_WS_URIS].as<std::vector<std::string>>();
     } else {
-        a_o.broker_ws_uris = std::vector<std::string> {DEFAULT_BROKER_WS_URI};
+        a_o.broker_ws_uris = std::vector<std::string>();
     }
 
-    a_o.certificates_dir = vm["certificates-dir"].as<std::string>();
-    a_o.results_dir      = vm["results-dir"].as<std::string>();
+    a_o.certificates_dir = vm[config_par::CERTIFICATES_DIR].as<std::string>();
+    a_o.results_dir      = vm[config_par::RESULTS_DIR].as<std::string>();
 
     return a_o;
 }
@@ -311,8 +313,8 @@ void parse_configfile_and_process_options(application_options& a_o) {
     // Process options that can be specified both on CL and configfile
 
     if (a_o.logfile.empty()) {
-        if (config_json.includes("logfile")) {
-            a_o.logfile = config_json.get<std::string>("logfile");
+        if (config_json.includes(config_par::LOGFILE)) {
+            a_o.logfile = config_json.get<std::string>(config_par::LOGFILE);
         } else {
             a_o.logfile = DEFAULT_LOGFILE;
         }
@@ -321,18 +323,27 @@ void parse_configfile_and_process_options(application_options& a_o) {
     a_o.logfile = lth_file::tilde_expand(a_o.logfile);
 
     if (a_o.loglevel.empty()) {
-        if (config_json.includes("loglevel")) {
-            a_o.loglevel = config_json.get<std::string>("loglevel");
+        if (config_json.includes(config_par::LOGLEVEL)) {
+            a_o.loglevel = config_json.get<std::string>(config_par::LOGLEVEL);
         } else {
             a_o.loglevel = DEFAULT_LOGLEVEL_TEXT;
         }
     }
 
     if (a_o.client_loglevel.empty()) {
-        if (config_json.includes("client-loglevel")) {
-            a_o.client_loglevel = config_json.get<std::string>("client-loglevel");
+        if (config_json.includes(config_par::CLIENT_LOGLEVEL)) {
+            a_o.client_loglevel = config_json.get<std::string>(config_par::CLIENT_LOGLEVEL);
         } else {
             a_o.client_loglevel = DEFAULT_CLIENT_LOGLEVEL_TEXT;
+        }
+    }
+
+    if (a_o.broker_ws_uris.empty()) {
+        if (config_json.includes(config_par::BROKER_WS_URIS)) {
+            a_o.broker_ws_uris =
+                config_json.get<std::vector<std::string>>(config_par::BROKER_WS_URIS);
+        } else {
+            a_o.broker_ws_uris = std::vector<std::string> {DEFAULT_BROKER_WS_URI};
         }
     }
 
@@ -344,11 +355,9 @@ void parse_configfile_and_process_options(application_options& a_o) {
     if (config_json.includes("connection-test-parameters")) {
         try {
             a_o.connection_test_parameters =
-                config_json.get<lth_jc::JsonContainer>(
-                        "connection-test-parameters");
+                config_json.get<lth_jc::JsonContainer>(config_par::CONNECTION_TEST_PARAMETERS);
         } catch (const lth_jc::data_error& e) {
-            throw configuration_error((boost::format(
-                                           "invalid configuration file (%1%)")
+            throw configuration_error((boost::format("invalid configuration file (%1%)")
                                        % e.what()).str());
         }
     }
@@ -403,7 +412,7 @@ void validate_application_options(application_options& a_o)
 
         try {
             parameters_validator.validate(a_o.connection_test_parameters,
-                                          schemas::CONNECTION_TEST_PARAMETERS);
+                                          config_par::CONNECTION_TEST_PARAMETERS);
         } catch (const PCPClient::validation_error& e) {
             throw configuration_error((boost::format("invalid connection test "
                                                      "parameters (%1%)")

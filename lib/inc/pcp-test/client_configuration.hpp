@@ -37,7 +37,7 @@ struct client_configuration
             const std::string& client_type,
             const std::vector<std::string>& broker_ws_uris,
             const std::string& certificate_dir,
-            long connection_tmeout_ms          = DEFAULT_CONNECTION_TIMEOUT_MS,
+            long connection_timeout_ms         = DEFAULT_CONNECTION_TIMEOUT_MS,
             uint32_t association_timeout_s     = DEFAULT_ASSOCIATION_TIMEOUT_S,
             uint32_t association_request_ttl_s = DEFAULT_ASSOCIATION_REQUEST_TTL_S,
             uint32_t message_ttl_s             = DEFAULT_MESSAGE_TTL_S);

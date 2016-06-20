@@ -5,6 +5,8 @@
 
 #pragma once
 
+#include <pcp-test/configuration_parameters.hpp>
+
 #include <leatherman/json_container/json_container.hpp>
 
 #include <string>
@@ -12,6 +14,8 @@
 #include <set>
 
 namespace pcp_test {
+
+namespace config_par = pcp_test::configuration_parameters;
 
 struct application_options
 {
@@ -34,14 +38,16 @@ struct application_options
 
     static bool is_configuration_file_option(const std::string& option_name)
     {
-        static std::set<std::string> option_names {"logfile",
-                                                   "loglevel",
-                                                   "client-loglevel",
-                                                   "configfile",
-                                                   "broker-ws-uris",
-                                                   "certificates-dir",
-                                                   "results-dir",
-                                                   "connection-test-parameters"};
+        static std::set<std::string> option_names {
+                config_par::LOGFILE,
+                config_par::LOGLEVEL,
+                config_par::CLIENT_LOGLEVEL,
+                config_par::CONFIG_FILE,
+                config_par::BROKER_WS_URIS,
+                config_par::CERTIFICATES_DIR,
+                config_par::RESULTS_DIR,
+                config_par::CONNECTION_TEST_PARAMETERS};
+
         return (option_names.find(option_name) != option_names.end());
     }
 };

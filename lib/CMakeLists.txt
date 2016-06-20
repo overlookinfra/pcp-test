@@ -27,6 +27,7 @@ set(PROJECT_SOURCES
     src/client.cc
     src/client_configuration.cc
     src/configuration.cc
+    src/configuration_parameters.cc
     src/message.cc
     src/pcp-test.cc
     src/schemas.cc

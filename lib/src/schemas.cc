@@ -1,5 +1,6 @@
 #include <pcp-test/schemas.hpp>
 #include <pcp-test/test_connection_parameters.hpp>
+#include <pcp-test/configuration_parameters.hpp>
 
 namespace pcp_test {
 namespace schemas {
@@ -53,11 +54,10 @@ PCPClient::Schema error()
     return schema;
 }
 
-const std::string CONNECTION_TEST_PARAMETERS {"connection-test-parameters"};
-
 PCPClient::Schema connection_test_parameters()
 {
-    PCPClient::Schema schema {CONNECTION_TEST_PARAMETERS, C_Type::Json};
+    PCPClient::Schema schema {configuration_parameters::CONNECTION_TEST_PARAMETERS,
+                              C_Type::Json};
 
     schema.addConstraint(conn_par::NUM_RUNS,                  T_Constraint::Int, true);
     schema.addConstraint(conn_par::INTER_RUN_PAUSE_MS,        T_Constraint::Int, true);

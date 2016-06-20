@@ -18,6 +18,7 @@ extern const std::string CONCURRENCY;
 extern const std::string ENDPOINTS_INCREMENT;
 extern const std::string CONCURRENCY_INCREMENT;
 extern const std::string WS_CONNECTION_TIMEOUT_MS;
+extern const std::string WS_CONNECTION_CHECK_INTERVAL_S;
 extern const std::string ASSOCIATION_TIMEOUT_S;
 extern const std::string ASSOCIATION_REQUEST_TTL_S;
 extern const std::string PERSIST_CONNECTIONS;

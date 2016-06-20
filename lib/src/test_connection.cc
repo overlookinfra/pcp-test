@@ -105,6 +105,8 @@ std::ofstream & operator<< (boost::nowide::ofstream& out,
 // connection_test
 //
 
+static constexpr uint32_t DEFAULT_WS_CONNECTION_CHECK_INTERVAL_S {15};
+
 connection_test::connection_test(const application_options& a_o)
     : app_opt_(a_o),
       num_runs_ {app_opt_.connection_test_parameters.get<int>(conn_par::NUM_RUNS)},
@@ -118,6 +120,11 @@ connection_test::connection_test(const application_options& a_o)
           app_opt_.connection_test_parameters.get<int>(conn_par::ASSOCIATION_TIMEOUT_S))},
       association_request_ttl_s_ {static_cast<unsigned int>(
           app_opt_.connection_test_parameters.get<int>(conn_par::ASSOCIATION_REQUEST_TTL_S))},
+      ws_connection_check_interval_s_ {
+            app_opt_.connection_test_parameters.includes(conn_par::WS_CONNECTION_CHECK_INTERVAL_S)
+            ? static_cast<unsigned int>(
+                app_opt_.connection_test_parameters.get<int>(conn_par::WS_CONNECTION_CHECK_INTERVAL_S))
+            : DEFAULT_WS_CONNECTION_CHECK_INTERVAL_S},
       current_run_ {app_opt_},
       results_file_name_ {(boost::format("connection_test_%1%.csv")
                            % util::get_short_datetime()).str()},
@@ -204,7 +211,8 @@ void connection_test::display_execution_time(
 
 int connect_clients_serially(std::vector<std::unique_ptr<client>> client_ptrs,
                              const unsigned int inter_endpoint_pause_ms,
-                             const bool persist_connections)
+                             const bool persist_connections,
+                             const uint32_t connection_check_interval_s)
 {
     int num_failures {0};
     static std::chrono::milliseconds pause {inter_endpoint_pause_ms};
@@ -220,7 +228,7 @@ int connect_clients_serially(std::vector<std::unique_ptr<client>> client_ptrs,
             if (!associated) {
                 num_failures++;
             } else if (persist_connections) {
-                e_p->connector.startMonitoring(1);
+                e_p->connector.startMonitoring(1, connection_check_interval_s);
             }
         } catch (PCPClient::connection_error) {
             num_failures++;
@@ -300,8 +308,12 @@ connection_test_result connection_test::perform_current_run()
 
         try {
             task_futures.push_back(
-                std::async(std::launch::async, &connect_clients_serially,
-                           std::move(task_client_ptrs), inter_endpoint_pause_ms_, persist_connections));
+                std::async(std::launch::async,
+                           &connect_clients_serially,
+                           std::move(task_client_ptrs),
+                           inter_endpoint_pause_ms_,
+                           persist_connections_,
+                           ws_connection_check_interval_s_));
             LOG_DEBUG("Run %1% - started connection task n.%2%",
                       current_run_.idx, task_idx + 1);
         } catch (std::exception& e) {

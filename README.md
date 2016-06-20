@@ -81,20 +81,16 @@ An example of configuration file is:
         "logfile"         : "~/logs/pcp-test.log",
         "loglevel"        : "trace",
         "client-loglevel" : "info",
-        "broker-ws-uris"  : ["localhost",
-                             "broker.example.com"],
+        "broker-ws-uris"  : ["broker01.example.com",
+                             "broker02.example.com"],
         "connection-test-parameters" : {
-            "num-runs"                   : 1,
-            "inter-run-pause-ms"         : 5000,
-            "num-endpoints"              : 1,
-            "inter-endpoint-pause-ms"    : 150,
-            "concurrency"                : 1,
-            "endpoints-increment"        : 0,
-            "concurrency-increment"      : 0,
-            "ws-connection-timeout-ms"   : 1000,
-            "association-timeout-s"      : 5,
-            "association-request-ttl-s"  : 10,
-            "persist-connections"        : true
+            "num-runs"                : 1,
+            "inter-run-pause-ms"      : 5000,
+            "num-endpoints"           : 1,
+            "inter-endpoint-pause-ms" : 150,
+            "concurrency"             : 1,
+            "endpoints-increment"     : 0,
+            "concurrency-increment"   : 0
         }
     }
 ```

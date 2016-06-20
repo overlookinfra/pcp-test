@@ -257,7 +257,7 @@ application_options get_application_options(int argc, char** argv)
     if (vm.count("broker-ws-uris")) {
         a_o.broker_ws_uris = vm["broker-ws-uris"].as<std::vector<std::string>>();
     } else {
-        a_o.broker_ws_uris = std::vector<std::string> {DEFAULT_BROKER_WS_URI};
+        a_o.broker_ws_uris = std::vector<std::string>();
     }
 
     a_o.certificates_dir = vm["certificates-dir"].as<std::string>();
@@ -333,6 +333,15 @@ void parse_configfile_and_process_options(application_options& a_o) {
             a_o.client_loglevel = config_json.get<std::string>("client-loglevel");
         } else {
             a_o.client_loglevel = DEFAULT_CLIENT_LOGLEVEL_TEXT;
+        }
+    }
+
+    if (a_o.broker_ws_uris.empty()) {
+        if (config_json.includes("broker-ws-uris")) {
+            a_o.broker_ws_uris =
+                    config_json.get<std::vector<std::string>>("broker-ws-uris");
+        } else {
+            a_o.broker_ws_uris = std::vector<std::string> {DEFAULT_BROKER_WS_URI};
         }
     }
 

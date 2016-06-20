@@ -91,9 +91,12 @@ SCENARIO("configuration::parse_configfile_and_process_options", "[configuration]
     SECTION("successfully parses a valid config file") {
         application_options ao {};
         ao.configfile = (CONFIG_PATH / "good.json").string();
+        std::vector<std::string> expected_broker_uris {"broker_01.example.com",
+                                                       "broker_02.example.com"};
         REQUIRE_NOTHROW(configuration::parse_configfile_and_process_options(ao));
         REQUIRE(ao.logfile == "/tmp/pcp-test.log");
         REQUIRE(ao.loglevel == "warning");
+        REQUIRE(ao.broker_ws_uris == expected_broker_uris);
     }
 
     SECTION("does not supersede command line settings") {

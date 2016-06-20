@@ -1,4 +1,6 @@
 {
     "logfile"  : "/tmp/pcp-test.log",
-    "loglevel" : "warning"
+    "loglevel" : "warning",
+    "broker-ws-uris" : ["broker_01.example.com",
+                        "broker_02.example.com"]
 }

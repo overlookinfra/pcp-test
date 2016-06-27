@@ -227,7 +227,7 @@ void connection_test::display_execution_time(
             end_time - start_time).count() - (duration_m * 60);
 
     boost::nowide::cout
-        << "\n  Connection test: finished in " << duration_m << " m "
+        << "\nConnection test: finished in " << duration_m << " m "
         << duration_s << " s";
 
     if (current_run_.idx <= num_runs_) {

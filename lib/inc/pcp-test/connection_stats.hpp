@@ -24,22 +24,21 @@
 
 namespace pcp_test {
 
+using timing_accumulator_t = boost::accumulators::accumulator_set<
+                                uint32_t,
+                                boost::accumulators::stats<
+                                    boost::accumulators::tag::max,
+                                    boost::accumulators::tag::mean,
+                                    boost::accumulators::tag::variance>>;
 struct stats
 {
-    using my_accumulator_t =
-        boost::accumulators::accumulator_set<
-            uint32_t,
-            boost::accumulators::stats<boost::accumulators::tag::max,
-                                       boost::accumulators::tag::mean,
-                                       boost::accumulators::tag::variance>>;
-
     double   mean;
     double   stddev;
     uint32_t max;
     uint32_t count;
 
     stats();
-    explicit stats(const my_accumulator_t& a);
+    explicit stats(const timing_accumulator_t& a);
 };
 
 struct connection_stats
@@ -60,13 +59,6 @@ struct connection_stats
 struct connection_timings_accumulator
 {
   public:
-    using my_accumulator_t =
-        boost::accumulators::accumulator_set<
-            uint32_t,
-            boost::accumulators::stats<boost::accumulators::tag::max,
-                    boost::accumulators::tag::mean,
-                    boost::accumulators::tag::variance>>;
-
     void accumulate_tcp_us(uint32_t interval);
     void accumulate_ws_open_handshake_us(uint32_t interval);
     void accumulate_ws_close_handshake_us(uint32_t interval);
@@ -79,11 +71,11 @@ struct connection_timings_accumulator
     // Synchronizes accumulate() access to state
     mutable std::mutex the_mutex_;
 
-    my_accumulator_t tcp_us_acc_;
-    my_accumulator_t ws_open_handshake_us_acc_;
-    my_accumulator_t ws_close_handshake_us_acc_;
-    my_accumulator_t association_ms_acc_;
-    my_accumulator_t session_duration_ms_acc_;
+    timing_accumulator_t tcp_us_acc_;
+    timing_accumulator_t ws_open_handshake_us_acc_;
+    timing_accumulator_t ws_close_handshake_us_acc_;
+    timing_accumulator_t association_ms_acc_;
+    timing_accumulator_t session_duration_ms_acc_;
 };
 
 }  // namespace pcp_test

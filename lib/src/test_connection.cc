@@ -88,7 +88,8 @@ std::string connection_test_run::to_string() const
 connection_test_result::connection_test_result(const connection_test_run& run)
     : num_endpoints {run.num_endpoints},
       concurrency {run.concurrency},
-      num_failures {0}
+      num_failures {0},
+      conn_stats {}
 {
 }
 
@@ -155,6 +156,10 @@ connection_test::connection_test(const application_options& a_o)
             app_opt_.connection_test_parameters.includes(conn_par::PERSIST_CONNECTIONS)
             ? app_opt_.connection_test_parameters.get<bool>(conn_par::PERSIST_CONNECTIONS)
             : false},
+      show_stats_ {
+            app_opt_.connection_test_parameters.includes(conn_par::SHOW_STATS)
+            ? app_opt_.connection_test_parameters.get<bool>(conn_par::SHOW_STATS)
+            : false},
       current_run_ {app_opt_},
       results_file_name_ {(boost::format("connection_test_%1%.csv")
                            % util::get_short_datetime()).str()},
@@ -176,8 +181,16 @@ void connection_test::start()
     do {
         boost::nowide::cout << (run_msg_fmt % current_run_.to_string()).str();
         auto results = perform_current_run();
-        results_file_stream_ << results << '\n';
-        boost::nowide::cout << results << '\n';
+        results_file_stream_ << results;
+        boost::nowide::cout << results;
+
+        if (show_stats_) {
+            results_file_stream_ << results.conn_stats;
+            boost::nowide::cout << results.conn_stats;
+        }
+
+        results_file_stream_ << '\n';
+        boost::nowide::cout << '\n';
         ++current_run_;
 
         if (current_run_.idx <= num_runs_) {
@@ -248,7 +261,9 @@ void connection_test::display_execution_time(
 int connect_clients_serially(std::vector<std::unique_ptr<client>> client_ptrs,
                              const unsigned int inter_endpoint_pause_ms,
                              const bool persist_connections,
-                             const uint32_t connection_check_interval_s)
+                             const uint32_t connection_check_interval_s,
+                             std::shared_ptr<connection_timings_accumulator> timings_acc_ptr,
+                             const unsigned int task_id)
 {
     int num_failures {0};
     static std::chrono::milliseconds pause {inter_endpoint_pause_ms};
@@ -258,29 +273,60 @@ int connect_clients_serially(std::vector<std::unique_ptr<client>> client_ptrs,
             bool associated = true;
             e_p->connector.connect(1);
             associated &= e_p->connector.isAssociated();
+
+            if (timings_acc_ptr) {
+                auto ws_timings = e_p->connector.getConnectionTimings();
+                timings_acc_ptr->accumulate_tcp_us(
+                        ws_timings.getTCPInterval().count());
+                timings_acc_ptr->accumulate_ws_open_handshake_us(
+                        ws_timings.getOpeningHandshakeInterval().count());
+
+                if (associated) {
+                    auto ass_timings = e_p->connector.getAssociationTimings();
+                    timings_acc_ptr->accumulate_association_ms(
+                            ass_timings.getAssociationInterval().count());
+                }
+            }
+
             std::this_thread::sleep_for(pause);
             associated &= e_p->connector.isAssociated();
 
             if (!associated) {
+                LOG_WARNING("Connection Task %1%: client %2% is not associated after %3% ms",
+                            task_id, e_p->configuration.common_name, pause.count());
                 num_failures++;
             } else if (persist_connections) {
                 e_p->connector.startMonitoring(1, connection_check_interval_s);
             }
-        } catch (PCPClient::connection_error) {
+        } catch (const PCPClient::connection_error& e) {
+            LOG_WARNING("Connection Task %1%: client %2% failed to connect (%3%) "
+                        "- wil wait %4% ms", task_id,
+                        e_p->configuration.common_name, e.what(), pause.count());
             num_failures++;
+            std::this_thread::sleep_for(pause);
         }
     }
 
     for (auto &e_p : client_ptrs) {
         try {
-            e_p->connector.stopMonitoring();
+            if (persist_connections)
+                e_p->connector.stopMonitoring();
+
+            if (timings_acc_ptr && e_p->connector.isAssociated()) {
+                auto ass_timings = e_p->connector.getAssociationTimings();
+                timings_acc_ptr->accumulate_session_duration_ms(
+                        ass_timings.getOverallSessionInterval_ms().count());
+            }
         } catch (PCPClient::connection_not_init_error) {
             // Skip, already threw an exception above.
-        } catch (PCPClient::connection_error) {
+        } catch (const PCPClient::connection_error& e) {
+            LOG_WARNING("Connection Task %1%: client %2% failure (%3%)",
+                        task_id, e_p->configuration.common_name, e.what());
             num_failures++;
         }
     }
 
+    LOG_WARNING("Connection Task %1%: completed", task_id);
     return num_failures;
 }
 
@@ -289,6 +335,11 @@ static const std::string CONNECTION_TEST_CLIENT_TYPE {"CONNECTION_TEST_CLIENT"};
 connection_test_result connection_test::perform_current_run()
 {
     connection_test_result results {current_run_};
+    std::shared_ptr<connection_timings_accumulator> timings_acc_ptr {nullptr};
+
+    if (show_stats_)
+        timings_acc_ptr.reset(new connection_timings_accumulator());
+
     std::vector<std::future<int>> task_futures {};
     client_configuration c_cfg {"0000agent",
                                 CONNECTION_TEST_CLIENT_TYPE,
@@ -301,9 +352,8 @@ connection_test_result connection_test::perform_current_run()
     // Spawn concurrent tasks
 
     auto add_client =
-        [&c_cfg] (
-                std::string name,
-                std::vector<std::unique_ptr<client>>& task_client_ptrs) -> void
+        [&c_cfg] (std::string name,
+                  std::vector<std::unique_ptr<client>>& task_client_ptrs) -> void
         {
             c_cfg.common_name = name;
             c_cfg.update_cert_paths();
@@ -346,14 +396,16 @@ connection_test_result connection_test::perform_current_run()
                            std::move(task_client_ptrs),
                            inter_endpoint_pause_ms_,
                            persist_connections_,
-                           ws_connection_check_interval_s_));
-            LOG_DEBUG("Run %1% - started connection task n.%2%",
+                           ws_connection_check_interval_s_,
+                           timings_acc_ptr,
+                           task_idx));
+            LOG_DEBUG("Run %1% - started Connection Task n.%2%",
                       current_run_.idx, task_idx + 1);
         } catch (std::exception& e) {
             boost::nowide::cout
                 << "\n" << util::red("   [ERROR]   ")
-                << "failed to start connection threads: " << e.what() << "\n";
-            throw fatal_error { "failed to start connection threads" };
+                << "failed to start Connection Task - thread error: " << e.what() << "\n";
+            throw fatal_error { "failed to start Connection Task threads" };
         }
     }
 
@@ -366,18 +418,22 @@ connection_test_result connection_test::perform_current_run()
                        : std::chrono::seconds::zero();
 
         if (task_futures[thread_idx].wait_for(timeout) != std::future_status::ready) {
-            LOG_WARNING("run #%1% - Connection Task  %2% timed out",
+            LOG_WARNING("Run #%1% - Connection Task %2% timed out",
                         current_run_.idx, thread_idx);
             results.num_failures += current_run_.num_endpoints;
         } else {
             try {
                 results.num_failures += task_futures[thread_idx].get();
             } catch (std::exception& e) {
-                LOG_DEBUG("run #%1% - thread failure: %2%", current_run_.idx, e.what());
+                LOG_WARNING("Run #%1% - Connection Task %2% failure: %3%",
+                            current_run_.idx, thread_idx, e.what());
                 results.num_failures += current_run_.num_endpoints;
             }
         }
     }
+
+    // Get timing stats
+    results.conn_stats = timings_acc_ptr->get_connection_stats();
 
     return results;
 }

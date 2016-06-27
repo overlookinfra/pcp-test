@@ -71,6 +71,7 @@ PCPClient::Schema connection_test_parameters()
     schema.addConstraint(conn_par::ASSOCIATION_TIMEOUT_S,          T_Constraint::Int, false);
     schema.addConstraint(conn_par::ASSOCIATION_REQUEST_TTL_S,      T_Constraint::Int, false);
     schema.addConstraint(conn_par::PERSIST_CONNECTIONS,            T_Constraint::Bool, false);
+    schema.addConstraint(conn_par::SHOW_STATS,                     T_Constraint::Bool, false);
 
     return schema;
 }

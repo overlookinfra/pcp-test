@@ -12,7 +12,7 @@ namespace pcp_test {
 stats::stats() {
 }
 
-stats::stats(const my_accumulator_t &a)
+stats::stats(const timing_accumulator_t &a)
         : mean   {boost::accumulators::mean(a)},
           stddev {std::sqrt(boost::accumulators::variance(a))},
           max    {boost::accumulators::max(a)},

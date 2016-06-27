@@ -19,7 +19,7 @@ static const auto TEST_PATH = fs::path(PCP_TEST_ROOT_PATH) / "test-resources";
 
 SCENARIO("stats ctor", "[stats]") {
     SECTION("can initialize with a valid accumulator") {
-        stats::my_accumulator_t acc {};
+        timing_accumulator_t acc {};
         acc(10);
         REQUIRE_NOTHROW(stats(acc));
     }

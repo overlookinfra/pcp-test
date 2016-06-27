@@ -7,6 +7,7 @@
 #pragma once
 
 #include <pcp-test/application_options.hpp>
+#include <pcp-test/connection_stats.hpp>
 
 #include <boost/nowide/fstream.hpp>
 
@@ -42,6 +43,7 @@ struct connection_test_result
     int num_endpoints;
     int concurrency;
     int num_failures;
+    connection_stats conn_stats;
 
     explicit connection_test_result(const connection_test_run& run);
 
@@ -71,6 +73,7 @@ class connection_test
     unsigned int association_timeout_s_;
     unsigned int association_request_ttl_s_;
     bool persist_connections_;
+    bool show_stats_;
     connection_test_run current_run_;
     std::string results_file_name_;
     boost::nowide::ofstream results_file_stream_;

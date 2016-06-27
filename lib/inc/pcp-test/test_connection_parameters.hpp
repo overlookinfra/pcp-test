@@ -22,6 +22,7 @@ extern const std::string WS_CONNECTION_CHECK_INTERVAL_S;
 extern const std::string ASSOCIATION_TIMEOUT_S;
 extern const std::string ASSOCIATION_REQUEST_TTL_S;
 extern const std::string PERSIST_CONNECTIONS;
+extern const std::string SHOW_STATS;
 
 }  // namespace connection_test_parameters
 }  // namespace pcp_test

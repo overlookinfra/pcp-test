@@ -15,6 +15,7 @@ const std::string WS_CONNECTION_CHECK_INTERVAL_S {"ws-connection-check-interval-
 const std::string ASSOCIATION_TIMEOUT_S {"association-timeout-s"};
 const std::string ASSOCIATION_REQUEST_TTL_S {"association-request-ttl-s"};
 const std::string PERSIST_CONNECTIONS {"persist-connections"};
+const std::string SHOW_STATS {"show-stats"};
 
 }  // namespace connection_test_parameters
 }  // namespace pcp_test

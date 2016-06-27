@@ -4,6 +4,7 @@ include_directories(${LEATHERMAN_CATCH_INCLUDE})
 
 set(TEST_CASES
     configuration_test.cc
+    connection_stats_test.cc
     pcp-test_test.cc
 )
 

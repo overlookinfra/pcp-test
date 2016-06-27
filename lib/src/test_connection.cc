@@ -358,9 +358,16 @@ connection_test_result connection_test::perform_current_run()
     }
 
     // Wait for threads to complete and get the number of failures (as futures)
+    auto start = std::chrono::system_clock::now();
     for (std::size_t thread_idx = 0; thread_idx < task_futures.size(); thread_idx++) {
-        if (task_futures[thread_idx].wait_for(current_run_.timeout_s) != std::future_status::ready) {
-            LOG_DEBUG("run #%1% - thread  %2% timed out", current_run_.idx, thread_idx);
+        auto elapsed = std::chrono::system_clock::now() - start;
+        auto timeout = current_run_.timeout_s > elapsed
+                       ? current_run_.timeout_s - elapsed
+                       : std::chrono::seconds::zero();
+
+        if (task_futures[thread_idx].wait_for(timeout) != std::future_status::ready) {
+            LOG_WARNING("run #%1% - Connection Task  %2% timed out",
+                        current_run_.idx, thread_idx);
             results.num_failures += current_run_.num_endpoints;
         } else {
             try {

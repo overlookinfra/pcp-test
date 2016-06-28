@@ -82,7 +82,8 @@ void client::reply_with_error(const message& request,
 
 void client::ping()
 {
-    connection_ptr_->ping();
+    if (connection_ptr_)
+        connection_ptr_->ping();
 }
 
 // Protected virtual callbacks

@@ -8,11 +8,17 @@
 
 #include <pcp-test/application_options.hpp>
 #include <pcp-test/connection_stats.hpp>
+#include <pcp-test/client.hpp>
 
 #include <boost/nowide/fstream.hpp>
 
 #include <ostream>
 #include <chrono>
+#include <thread>
+#include <condition_variable>
+#include <mutex>
+#include <memory>
+#include <vector>
 
 namespace pcp_test {
 
@@ -77,10 +83,15 @@ class connection_test
     connection_test_run current_run_;
     std::string results_file_name_;
     boost::nowide::ofstream results_file_stream_;
+    std::thread keepalive_thread_;
+    std::mutex keepalive_mtx_;
+    std::condition_variable keepalive_cv_;
+    bool stop_keepalive_task_;
 
     void display_setup();
     void display_execution_time(std::chrono::system_clock::time_point start_time);
     connection_test_result perform_current_run();
+    void keepalive_task(std::vector<std::vector<std::shared_ptr<client>>> all_clients_ptrs);
 };
 
 }  // namespace pcp_test

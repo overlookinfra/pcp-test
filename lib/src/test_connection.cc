@@ -2,7 +2,6 @@
 #include <pcp-test/test_connection_parameters.hpp>
 #include <pcp-test/util.hpp>
 #include <pcp-test/errors.hpp>
-#include <pcp-test/client.hpp>
 #include <pcp-test/client_configuration.hpp>
 
 #include <cpp-pcp-client/connector/errors.hpp>
@@ -18,10 +17,9 @@
 
 #include <boost/nowide/iostream.hpp>
 
-#include <memory>
-#include <vector>
 #include <algorithm>
 #include <math.h>
+#include <functional>  // std::reference_wrapper
 
 // NOTE(ale): boost::future/async have different semantics than std::
 #include <thread>
@@ -164,7 +162,11 @@ connection_test::connection_test(const application_options& a_o)
       results_file_name_ {(boost::format("connection_test_%1%.csv")
                            % util::get_short_datetime()).str()},
       results_file_stream_ {(fs::path(app_opt_.results_dir)
-                             / results_file_name_).string()}
+                             / results_file_name_).string()},
+      keepalive_thread_ {},
+      keepalive_mtx_ {},
+      keepalive_cv_ {},
+      stop_keepalive_task_ {false}
 {
     if (!results_file_stream_.is_open())
         throw fatal_error {((boost::format("failed to open %1%")
@@ -194,10 +196,11 @@ void connection_test::start()
         ++current_run_;
 
         if (current_run_.idx <= num_runs_) {
-            // Be nice with the broker and pause (fixed + 50 ms per endpoint)
+            // Be nice with the broker and pause (2000 + pause * num endpoints)
             std::this_thread::sleep_for(std::chrono::milliseconds(
-                inter_run_pause_ms_
-                + current_run_.num_endpoints * current_run_.concurrency * 50));
+                2000 + inter_run_pause_ms_
+                       * current_run_.num_endpoints
+                       * current_run_.concurrency));
         }
     } while (current_run_.idx <= num_runs_);
 
@@ -213,8 +216,8 @@ void connection_test::display_setup()
         << p.get<int>(conn_par::CONCURRENCY_INCREMENT) << " per run) of "
         << p.get<int>(conn_par::NUM_ENDPOINTS) << " endpoints (+"
         << p.get<int>(conn_par::ENDPOINTS_INCREMENT) << " per run)\n"
-        << "  " << num_runs_ << " runs, ("
-        << inter_run_pause_ms_ << " + 50 * num_endpoints) ms pause between each run\n"
+        << "  " << num_runs_ << " runs, (2000 + "
+        << inter_run_pause_ms_ << " * num_endpoints) ms pause between each run\n"
         << "  " << inter_endpoint_pause_ms_
         << " ms pause between each endpoint connection\n"
         << "  WebSocket connection timeout " << ws_connection_timeout_ms_ << " ms\n"
@@ -256,77 +259,69 @@ void connection_test::display_execution_time(
     }
 }
 
-// Connection task
+// Connection Task
 
-int connect_clients_serially(std::vector<std::unique_ptr<client>> client_ptrs,
+int connect_clients_serially(std::vector<std::shared_ptr<client>> client_ptrs,
                              const unsigned int inter_endpoint_pause_ms,
-                             const bool persist_connections,
-                             const uint32_t connection_check_interval_s,
                              std::shared_ptr<connection_timings_accumulator> timings_acc_ptr,
                              const unsigned int task_id)
 {
     int num_failures {0};
     static std::chrono::milliseconds pause {inter_endpoint_pause_ms};
+    bool associated;
 
     for (auto &e_p : client_ptrs) {
         try {
-            bool associated = true;
-            e_p->connector.connect(1);
-            associated &= e_p->connector.isAssociated();
+            associated = true;
+            e_p->connect(1);
+            associated &= e_p->isAssociated();
 
             if (timings_acc_ptr) {
-                auto ws_timings = e_p->connector.getConnectionTimings();
+                auto ws_timings = e_p->getConnectionTimings();
                 timings_acc_ptr->accumulate_tcp_us(
                         ws_timings.getTCPInterval().count());
                 timings_acc_ptr->accumulate_ws_open_handshake_us(
                         ws_timings.getOpeningHandshakeInterval().count());
 
                 if (associated) {
-                    auto ass_timings = e_p->connector.getAssociationTimings();
+                    auto ass_timings = e_p->getAssociationTimings();
                     timings_acc_ptr->accumulate_association_ms(
                             ass_timings.getAssociationInterval().count());
                 }
             }
 
             std::this_thread::sleep_for(pause);
-            associated &= e_p->connector.isAssociated();
+            associated &= e_p->isAssociated();
 
             if (!associated) {
                 LOG_WARNING("Connection Task %1%: client %2% is not associated after %3% ms",
                             task_id, e_p->configuration.common_name, pause.count());
                 num_failures++;
-            } else if (persist_connections) {
-                e_p->connector.startMonitoring(1, connection_check_interval_s);
             }
         } catch (const PCPClient::connection_error& e) {
             LOG_WARNING("Connection Task %1%: client %2% failed to connect (%3%) "
-                        "- wil wait %4% ms", task_id,
+                        "- will wait %4% ms", task_id,
                         e_p->configuration.common_name, e.what(), pause.count());
             num_failures++;
-            std::this_thread::sleep_for(pause);
+        } catch (const std::exception& e) {
+            LOG_WARNING("Connection Task %1%: unexpected error for client %2% "
+                        "(%3%) - will wait %4% ms",
+                        task_id, e_p->configuration.common_name, e.what(), pause.count());
+            num_failures++;
         }
+
+        std::this_thread::sleep_for(pause);
     }
 
     for (auto &e_p : client_ptrs) {
-        try {
-            if (persist_connections)
-                e_p->connector.stopMonitoring();
-
-            if (timings_acc_ptr && e_p->connector.isAssociated()) {
-                auto ass_timings = e_p->connector.getAssociationTimings();
-                timings_acc_ptr->accumulate_session_duration_ms(
-                        ass_timings.getOverallSessionInterval_ms().count());
-            }
-        } catch (PCPClient::connection_not_init_error) {
-            // Skip, already threw an exception above.
-        } catch (const PCPClient::connection_error& e) {
-            LOG_WARNING("Connection Task %1%: client %2% failure (%3%)",
-                        task_id, e_p->configuration.common_name, e.what());
-            num_failures++;
+        if (timings_acc_ptr && e_p->isAssociated()) {
+            auto ass_timings = e_p->getAssociationTimings();
+            timings_acc_ptr->accumulate_session_duration_ms(
+                    ass_timings.getOverallSessionInterval_ms().count());
         }
     }
 
-    LOG_WARNING("Connection Task %1%: completed", task_id);
+    LOG_INFO("Connection Task %1%: completed", task_id);
     return num_failures;
 }
 
@@ -340,6 +335,7 @@ connection_test_result connection_test::perform_current_run()
     if (show_stats_)
         timings_acc_ptr.reset(new connection_timings_accumulator());
 
+    std::vector<std::vector<std::shared_ptr<client>>> all_client_ptrs {};
     std::vector<std::future<int>> task_futures {};
     client_configuration c_cfg {"0000agent",
                                 CONNECTION_TEST_CLIENT_TYPE,
@@ -353,12 +349,12 @@ connection_test_result connection_test::perform_current_run()
 
     auto add_client =
         [&c_cfg] (std::string name,
-                  std::vector<std::unique_ptr<client>>& task_client_ptrs) -> void
+                  std::vector<std::shared_ptr<client>>& task_client_ptrs) -> void
         {
             c_cfg.common_name = name;
             c_cfg.update_cert_paths();
-            auto c_ptr = std::unique_ptr<client>(new client(c_cfg));
-            task_client_ptrs.push_back(std::move(c_ptr));
+            auto c_ptr = std::make_shared<client>(c_cfg);
+            task_client_ptrs.push_back(c_ptr);
         };
 
     auto agents_it       = app_opt_.agents.begin();
@@ -384,10 +380,13 @@ connection_test_result connection_test::perform_current_run()
         };
 
     for (auto task_idx = 0; task_idx < current_run_.concurrency; task_idx++) {
-        std::vector<std::unique_ptr<client>> task_client_ptrs {};
+        std::vector<std::shared_ptr<client>> task_client_ptrs {};
 
         for (auto idx = 0; idx < current_run_.num_endpoints; idx++)
             add_client(get_name(), task_client_ptrs);
+
+        if (persist_connections_)
+            all_client_ptrs.emplace_back(task_client_ptrs);
 
         try {
             task_futures.push_back(
@@ -395,17 +394,31 @@ connection_test_result connection_test::perform_current_run()
                            &connect_clients_serially,
                            std::move(task_client_ptrs),
                            inter_endpoint_pause_ms_,
-                           persist_connections_,
-                           ws_connection_check_interval_s_,
                            timings_acc_ptr,
                            task_idx));
-            LOG_DEBUG("Run %1% - started Connection Task n.%2%",
+            LOG_DEBUG("Run #%1% - started Connection Task %2%",
                       current_run_.idx, task_idx + 1);
         } catch (std::exception& e) {
             boost::nowide::cout
                 << "\n" << util::red("   [ERROR]   ")
                 << "failed to start Connection Task - thread error: " << e.what() << "\n";
             throw fatal_error { "failed to start Connection Task threads" };
+        }
+    }
+
+    // Start the Keep Alive Task
+    if (persist_connections_) {
+        stop_keepalive_task_ = false;
+
+        try {
+            keepalive_thread_ = std::thread {&connection_test::keepalive_task,
+                                             this,
+                                             std::move(all_client_ptrs)};
+        } catch (std::exception& e) {
+            boost::nowide::cout
+            << "\n" << util::red("   [ERROR]   ")
+            << "failed to start Keep Alive Task - thread error: " << e.what() << "\n";
+            throw fatal_error { "failed to start Keep Alive Task thread" };
         }
     }
 
@@ -433,9 +446,98 @@ connection_test_result connection_test::perform_current_run()
     }
 
     // Get timing stats
-    results.conn_stats = timings_acc_ptr->get_connection_stats();
+    if (show_stats_)
+        results.conn_stats = timings_acc_ptr->get_connection_stats();
+
+    LOG_INFO("Run #%1% - got Connection Task results; about to close connections",
+             current_run_.idx);
+
+    // Stop the Keep-alive Task
+    if (persist_connections_) {
+        stop_keepalive_task_ = true;
+        keepalive_cv_.notify_one();
+
+        if (keepalive_thread_.joinable()) {
+            keepalive_thread_.join();
+            LOG_INFO("Run #%1% - Keep Alive Task completed", current_run_.idx);
+        } else {
+            LOG_ERROR("The Keep Alive Task thread is not joinable");
+        }
+    }
 
     return results;
+}
+
+static constexpr uint32_t PING_PAUSE_MS {2};
+
+void connection_test::keepalive_task(
+        std::vector<std::vector<std::shared_ptr<client>>> all_clients_ptrs)
+{
+    assert(persist_connections_);
+    std::chrono::system_clock::time_point now {};
+    static const std::chrono::milliseconds ping_pause_ms {PING_PAUSE_MS};
+    uint32_t ping_loop_duration_s {
+        (current_run_.num_endpoints * current_run_.concurrency * PING_PAUSE_MS) / 1000};
+    std::chrono::seconds check_interval {
+        ws_connection_check_interval_s_ > ping_loop_duration_s
+        ? ws_connection_check_interval_s_ - ping_loop_duration_s
+        : 1};
+    std::unique_lock<std::mutex> lck {keepalive_mtx_};
+    LOG_INFO("Run #%1% - starting Keep Alive Task, period equal to %2% s",
+             current_run_.idx, check_interval.count());
+
+    while (!stop_keepalive_task_) {
+        now = std::chrono::system_clock::now();
+        keepalive_cv_.wait_until(lck, now + check_interval);
+
+        for (auto& task_clients_ptrs : all_clients_ptrs) {
+            for (auto &c_ptr : task_clients_ptrs) {
+                if (stop_keepalive_task_)
+                    break;
+
+                if (c_ptr->isAssociated()) {
+                    try {
+                        c_ptr->ping();
+                    } catch (const std::exception &e) {
+                        LOG_ERROR("Client %1% failed to ping (%2%)",
+                                  c_ptr->configuration.common_name, e.what());
+                    }
+
+                    std::this_thread::sleep_for(ping_pause_ms);
+                }
+            }
+        }
+    }
+
+    if (all_clients_ptrs.size() > 1) {
+        // Trigger client dtors concurrently
+        std::vector<std::thread> dtor_threads{};
+
+        try {
+            for (auto &t_c_ptrs : all_clients_ptrs) {
+                dtor_threads.push_back(std::thread {
+                    [&t_c_ptrs]() {
+                        try {
+                            for (auto &c : t_c_ptrs)
+                                c.reset();
+                        } catch (const std::exception &e) {
+                            LOG_ERROR("Exception closing connection: %1%", e.what());
+                        }
+                    }});
+            }
+        } catch (const std::exception &e) {
+            LOG_ERROR("Failed to destroy clients (%1%)", e.what());
+        }
+
+        for (auto &t : dtor_threads) {
+            try {
+                if (t.joinable())
+                    t.join();
+            } catch (const std::exception &e) {
+                LOG_ERROR("Exception joining threads: %1%", e.what());
+            }
+        }
+    }
 }
 
 }  // namespace pcp_test

@@ -23,7 +23,7 @@ namespace pcp_test {
 // polymorphism, by subclassing and defining process_XXX() methods,
 // and callbacks
 
-class client
+class client : public PCPClient::Connector
 {
   public:
     // NOTE(ale): PCPClient::Connector's dtor resets all WS event
@@ -33,7 +33,6 @@ class client
                            client* client_ptr)>;
 
     client_configuration configuration;
-    PCPClient::Connector connector;
 
     msg_callback request_callback;
     msg_callback response_callback;
@@ -55,6 +54,10 @@ class client
     // error message.
     void reply_with_error(const message& request,
                           const std::string& err_msg);
+
+    // Send a WebSocket ping
+    void ping();
+
   protected:
     virtual void process_request(const PCPClient::ParsedChunks& parsed_chunks);
     virtual void process_response(const PCPClient::ParsedChunks& parsed_chunks);

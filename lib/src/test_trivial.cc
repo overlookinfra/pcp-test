@@ -98,7 +98,7 @@ void run_trivial_test(const application_options& a_o)
                 [&]() -> void
                 {
                     try {
-                        c.connector.connect(3);
+                        c.connect(3);
                     } catch (const PCPClient::connection_error& e) {
                         LOG_DEBUG("Failed to connect: %1%", e.what());
                     }
@@ -108,7 +108,7 @@ void run_trivial_test(const application_options& a_o)
             [&clients]() -> bool
             {
                 return std::all_of(clients.begin(), clients.end(),
-                                   [](client& c){return c.connector.isAssociated();});
+                                   [](client& c){return c.isAssociated();});
             };
 
     lth_util::Timer timer {};

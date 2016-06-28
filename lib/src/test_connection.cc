@@ -271,25 +271,25 @@ int connect_clients_serially(std::vector<std::unique_ptr<client>> client_ptrs,
     for (auto &e_p : client_ptrs) {
         try {
             bool associated = true;
-            e_p->connector.connect(1);
-            associated &= e_p->connector.isAssociated();
+            e_p->connect(1);
+            associated &= e_p->isAssociated();
 
             if (timings_acc_ptr) {
-                auto ws_timings = e_p->connector.getConnectionTimings();
+                auto ws_timings = e_p->getConnectionTimings();
                 timings_acc_ptr->accumulate_tcp_us(
                         ws_timings.getTCPInterval().count());
                 timings_acc_ptr->accumulate_ws_open_handshake_us(
                         ws_timings.getOpeningHandshakeInterval().count());
 
                 if (associated) {
-                    auto ass_timings = e_p->connector.getAssociationTimings();
+                    auto ass_timings = e_p->getAssociationTimings();
                     timings_acc_ptr->accumulate_association_ms(
                             ass_timings.getAssociationInterval().count());
                 }
             }
 
             std::this_thread::sleep_for(pause);
-            associated &= e_p->connector.isAssociated();
+            associated &= e_p->isAssociated();
 
             if (!associated) {
                 LOG_WARNING("Connection Task %1%: client %2% is not associated after %3% ms",

@@ -22,8 +22,8 @@ a given set are connected one at a time, with a given pause in between
 The test is repeated a number of times (`num-runs`); each run may have the
 number of sets or clients per set incremented (respectively, by
 `concurrency-increment` and `endpoints-increment`). The test runner waits for a
-given interval before starting a subsequent run (`inter-run-pause-ms`, in
-milliseconds, plus 50 ms for each established connection).
+given interval before starting a subsequent run: a fixed interval of 2 s plus
+`inter-run-pause-ms`, in milliseconds, for each established connection.
 
 WebSocket connections are established with a given timeout for the handshake
 initialization (`ws-connection-timeout-ms` in milliseconds).

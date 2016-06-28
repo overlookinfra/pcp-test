@@ -194,10 +194,11 @@ void connection_test::start()
         ++current_run_;
 
         if (current_run_.idx <= num_runs_) {
-            // Be nice with the broker and pause (fixed + 50 ms per endpoint)
+            // Be nice with the broker and pause (2000 + pause * num endpoints)
             std::this_thread::sleep_for(std::chrono::milliseconds(
-                inter_run_pause_ms_
-                + current_run_.num_endpoints * current_run_.concurrency * 50));
+                2000 + inter_run_pause_ms_
+                       * current_run_.num_endpoints
+                       * current_run_.concurrency));
         }
     } while (current_run_.idx <= num_runs_);
 
@@ -213,8 +214,8 @@ void connection_test::display_setup()
         << p.get<int>(conn_par::CONCURRENCY_INCREMENT) << " per run) of "
         << p.get<int>(conn_par::NUM_ENDPOINTS) << " endpoints (+"
         << p.get<int>(conn_par::ENDPOINTS_INCREMENT) << " per run)\n"
-        << "  " << num_runs_ << " runs, ("
-        << inter_run_pause_ms_ << " + 50 * num_endpoints) ms pause between each run\n"
+        << "  " << num_runs_ << " runs, (2000 + "
+        << inter_run_pause_ms_ << " * num_endpoints) ms pause between each run\n"
         << "  " << inter_endpoint_pause_ms_
         << " ms pause between each endpoint connection\n"
         << "  WebSocket connection timeout " << ws_connection_timeout_ms_ << " ms\n"

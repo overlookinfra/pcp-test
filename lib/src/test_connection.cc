@@ -434,7 +434,8 @@ connection_test_result connection_test::perform_current_run()
     }
 
     // Get timing stats
-    results.conn_stats = timings_acc_ptr->get_connection_stats();
+    if (show_stats_)
+        results.conn_stats = timings_acc_ptr->get_connection_stats();
 
     return results;
 }

@@ -54,6 +54,10 @@ class client : public PCPClient::Connector
     // error message.
     void reply_with_error(const message& request,
                           const std::string& err_msg);
+
+    // Send a WebSocket ping
+    void ping();
+
   protected:
     virtual void process_request(const PCPClient::ParsedChunks& parsed_chunks);
     virtual void process_response(const PCPClient::ParsedChunks& parsed_chunks);

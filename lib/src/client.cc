@@ -80,6 +80,11 @@ void client::reply_with_error(const message& request,
     }
 }
 
+void client::ping()
+{
+    connection_ptr_->ping();
+}
+
 // Protected virtual callbacks
 
 void client::process_request(const PCPClient::ParsedChunks& parsed_chunks)

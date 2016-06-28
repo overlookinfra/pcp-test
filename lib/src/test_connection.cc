@@ -256,7 +256,7 @@ void connection_test::display_execution_time(
     }
 }
 
-// Connection task
+// Connection Task
 
 int connect_clients_serially(std::vector<std::unique_ptr<client>> client_ptrs,
                              const unsigned int inter_endpoint_pause_ms,
@@ -267,10 +267,11 @@ int connect_clients_serially(std::vector<std::unique_ptr<client>> client_ptrs,
 {
     int num_failures {0};
     static std::chrono::milliseconds pause {inter_endpoint_pause_ms};
+    bool associated;
 
     for (auto &e_p : client_ptrs) {
         try {
-            bool associated = true;
+            associated = true;
             e_p->connect(1);
             associated &= e_p->isAssociated();
 
@@ -326,7 +327,7 @@ int connect_clients_serially(std::vector<std::unique_ptr<client>> client_ptrs,
         }
     }
 
-    LOG_WARNING("Connection Task %1%: completed", task_id);
+    LOG_INFO("Connection Task %1%: completed", task_id);
     return num_failures;
 }
 
@@ -399,7 +400,7 @@ connection_test_result connection_test::perform_current_run()
                            ws_connection_check_interval_s_,
                            timings_acc_ptr,
                            task_idx));
-            LOG_DEBUG("Run %1% - started Connection Task n.%2%",
+            LOG_DEBUG("Run #%1% - started Connection Task %2%",
                       current_run_.idx, task_idx + 1);
         } catch (std::exception& e) {
             boost::nowide::cout

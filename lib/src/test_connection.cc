@@ -416,8 +416,10 @@ connection_test_result connection_test::perform_current_run()
         for (auto idx = 0; idx < current_run_.num_endpoints; idx++)
             add_client(get_name(), task_client_ptrs);
 
-        if (persist_connections_)
-            all_client_ptrs.emplace_back(task_client_ptrs);
+        // Copy client pointers so this thread will be in charge of
+        // destroying them, otherwise we would include the close
+        // handshake times when reporting the overall time to connect
+        all_client_ptrs.emplace_back(task_client_ptrs);
 
         try {
             task_futures.push_back(

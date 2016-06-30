@@ -27,7 +27,6 @@
 
 namespace pcp_test {
 
-
 namespace lth_jc   = leatherman::json_container;
 namespace conn_par = pcp_test::connection_test_parameters;
 namespace fs       = boost::filesystem;

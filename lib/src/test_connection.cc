@@ -27,7 +27,6 @@
 
 namespace pcp_test {
 
-
 namespace lth_jc   = leatherman::json_container;
 namespace conn_par = pcp_test::connection_test_parameters;
 namespace fs       = boost::filesystem;
@@ -36,6 +35,21 @@ void run_connection_test(const application_options& a_o)
 {
     connection_test test {a_o};
     test.start();
+}
+
+static std::string normalizeTimeInterval(uint32_t duration_ms)
+{
+    auto min = duration_ms / 60000;
+    auto s   = (duration_ms - min * 60000) / 1000;
+    auto ms  = duration_ms % 1000;
+
+    if (min > 0)
+        return (boost::format("%1% min %2% s") % min % s).str();
+
+    if (s > 0)
+        return (boost::format("%1%.%2% s") % s % ms).str();
+
+    return (boost::format("%1% ms") % ms).str();
 }
 
 //
@@ -87,8 +101,18 @@ connection_test_result::connection_test_result(const connection_test_run& run)
     : num_endpoints {run.num_endpoints},
       concurrency {run.concurrency},
       num_failures {0},
-      conn_stats {}
+      duration_ms {0},
+      conn_stats {},
+      start {std::chrono::high_resolution_clock::now()},
+      completion {}
 {
+}
+
+void connection_test_result::set_completion()
+{
+    completion = std::chrono::high_resolution_clock::now();
+    duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                       completion - start).count();
 }
 
 std::ostream & operator<< (std::ostream& out, const connection_test_result& r)
@@ -103,6 +127,8 @@ std::ostream & operator<< (std::ostream& out, const connection_test_result& r)
             << " successful connections";
     }
 
+    out << " in " << normalizeTimeInterval(r.duration_ms);
+
     return out;
 }
 
@@ -111,7 +137,8 @@ std::ofstream & operator<< (boost::nowide::ofstream& out,
 {
     out << r.num_endpoints << ","
         << r.concurrency << ","
-        << r.num_failures;
+        << r.num_failures << ","
+        << r.duration_ms;
 
     return out;
 }
@@ -267,6 +294,7 @@ int connect_clients_serially(std::vector<std::shared_ptr<client>> client_ptrs,
                              const unsigned int task_id)
 {
     int num_failures {0};
+    auto start = std::chrono::system_clock::now();
     static std::chrono::milliseconds pause {inter_endpoint_pause_ms};
     bool associated;
 
@@ -321,7 +349,10 @@ int connect_clients_serially(std::vector<std::shared_ptr<client>> client_ptrs,
         }
     }
 
-    LOG_INFO("Connection Task %1%: completed", task_id);
+    auto d = std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::system_clock::now() - start).count();
+    LOG_INFO("Connection Task %1%: completed in %2%",
+             task_id, normalizeTimeInterval(d));
     return num_failures;
 }
 
@@ -385,8 +416,10 @@ connection_test_result connection_test::perform_current_run()
         for (auto idx = 0; idx < current_run_.num_endpoints; idx++)
             add_client(get_name(), task_client_ptrs);
 
-        if (persist_connections_)
-            all_client_ptrs.emplace_back(task_client_ptrs);
+        // Copy client pointers so this thread will be in charge of
+        // destroying them, otherwise we would include the close
+        // handshake times when reporting the overall time to connect
+        all_client_ptrs.emplace_back(task_client_ptrs);
 
         try {
             task_futures.push_back(
@@ -423,7 +456,9 @@ connection_test_result connection_test::perform_current_run()
     }
 
     // Wait for threads to complete and get the number of failures (as futures)
+
     auto start = std::chrono::system_clock::now();
+
     for (std::size_t thread_idx = 0; thread_idx < task_futures.size(); thread_idx++) {
         auto elapsed = std::chrono::system_clock::now() - start;
         auto timeout = current_run_.timeout_s > elapsed
@@ -444,6 +479,8 @@ connection_test_result connection_test::perform_current_run()
             }
         }
     }
+
+    results.set_completion();
 
     // Get timing stats
     if (show_stats_)

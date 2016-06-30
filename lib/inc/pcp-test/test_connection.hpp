@@ -19,6 +19,7 @@
 #include <mutex>
 #include <memory>
 #include <vector>
+#include <chrono>
 
 namespace pcp_test {
 
@@ -49,9 +50,15 @@ struct connection_test_result
     int num_endpoints;
     int concurrency;
     int num_failures;
+    int duration_ms;
     connection_stats conn_stats;
+    std::chrono::high_resolution_clock::time_point start;
+    std::chrono::high_resolution_clock::time_point completion;
 
     explicit connection_test_result(const connection_test_run& run);
+
+    // Sets the completion time point
+    void set_completion();
 
     // To stdout (human readable)
     friend std::ostream& operator<< (std::ostream& out_stream,

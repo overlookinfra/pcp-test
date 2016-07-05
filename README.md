@@ -88,6 +88,8 @@ An example of configuration file is:
             "inter-run-pause-ms"             : 5000,
             "num-endpoints"                  : 1,
             "inter-endpoint-pause-ms"        : 150,
+            "randomize-inter-endpoint-pause" : true,
+            "inter-endpoint-pause-rng-seed"  : 42,
             "concurrency"                    : 1,
             "endpoints-increment"            : 0,
             "concurrency-increment"          : 0,

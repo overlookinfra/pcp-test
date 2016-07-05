@@ -3,6 +3,7 @@
 #include <pcp-test/util.hpp>
 #include <pcp-test/errors.hpp>
 #include <pcp-test/client_configuration.hpp>
+#include <pcp-test/random.hpp>
 
 #include <cpp-pcp-client/connector/errors.hpp>
 
@@ -56,21 +57,24 @@ static std::string normalizeTimeInterval(uint32_t duration_ms)
 // connection_test_run
 //
 
+static constexpr int DEFAULT_INTER_ENDPOINT_PAUSE_RNG_SEED {1};
+
 connection_test_run::connection_test_run(const application_options& a_o)
     : endpoints_increment_ {
         a_o.connection_test_parameters.get<int>(conn_par::ENDPOINTS_INCREMENT)},
       concurrency_increment_ {
         a_o.connection_test_parameters.get<int>(conn_par::CONCURRENCY_INCREMENT)},
-      endpoint_timeout_s_ {
-        static_cast<int>(
-            std::max(1.0,
-                     std::ceil(a_o.connection_test_parameters.get<int>(
-                        conn_par::INTER_ENDPOINT_PAUSE_MS) / 1000)))
-        + a_o.connection_test_parameters.get<int>(conn_par::ASSOCIATION_TIMEOUT_S)},
+      endpoint_timeout_ms_ {
+        a_o.connection_test_parameters.get<int>(conn_par::WS_CONNECTION_TIMEOUT_MS)
+        + 1000 * a_o.connection_test_parameters.get<int>(conn_par::ASSOCIATION_TIMEOUT_S)},
       idx {1},
       num_endpoints {a_o.connection_test_parameters.get<int>(conn_par::NUM_ENDPOINTS)},
       concurrency {a_o.connection_test_parameters.get<int>(conn_par::CONCURRENCY)},
-      timeout_s {num_endpoints * endpoint_timeout_s_}
+      rng_seed {
+        a_o.connection_test_parameters.includes(conn_par::INTER_ENDPOINT_PAUSE_RNG_SEED)
+        ? a_o.connection_test_parameters.get<int>(conn_par::INTER_ENDPOINT_PAUSE_RNG_SEED)
+        : DEFAULT_INTER_ENDPOINT_PAUSE_RNG_SEED},
+      total_endpoint_timeout_ms {endpoint_timeout_ms_ * num_endpoints}
 {
 }
 
@@ -79,18 +83,16 @@ connection_test_run& connection_test_run::operator++()
     idx++;
     num_endpoints += endpoints_increment_;
     concurrency   += concurrency_increment_;
-
-    if (endpoints_increment_)
-        timeout_s += endpoints_increment_ * endpoint_timeout_s_;
+    rng_seed++;
+    total_endpoint_timeout_ms += endpoint_timeout_ms_ * endpoints_increment_;
 
     return *this;
 }
 
 std::string connection_test_run::to_string() const
 {
-    return (boost::format("run %1%: %2% concurrent sets of %3% endpoints; "
-                          "timeout for each set %4% s")
-            % idx % concurrency % num_endpoints % timeout_s.count()).str();
+    return (boost::format("run %1%: %2% concurrent sets of %3% endpoints")
+            % idx % concurrency % num_endpoints).str();
 }
 
 //
@@ -149,14 +151,20 @@ std::ofstream & operator<< (boost::nowide::ofstream& out,
 
 static constexpr uint32_t DEFAULT_WS_CONNECTION_TIMEOUT_MS {1500};
 static constexpr uint32_t DEFAULT_WS_CONNECTION_CHECK_INTERVAL_S {15};
+static constexpr bool DEFAULT_RANDOMIZE_PAUSE {false};
 
 connection_test::connection_test(const application_options& a_o)
     : app_opt_(a_o),
       num_runs_ {app_opt_.connection_test_parameters.get<int>(conn_par::NUM_RUNS)},
       inter_run_pause_ms_ {static_cast<unsigned int>(
-          app_opt_.connection_test_parameters.get<int>(conn_par::INTER_RUN_PAUSE_MS))},
+            app_opt_.connection_test_parameters.get<int>(conn_par::INTER_RUN_PAUSE_MS))},
       inter_endpoint_pause_ms_ {static_cast<unsigned int>(
-          app_opt_.connection_test_parameters.get<int>(conn_par::INTER_ENDPOINT_PAUSE_MS))},
+            app_opt_.connection_test_parameters.get<int>(conn_par::INTER_ENDPOINT_PAUSE_MS))},
+      randomize_pause_ {
+            app_opt_.connection_test_parameters.includes(conn_par::RANDOMIZE_INTER_ENDPOINT_PAUSE)
+            ? app_opt_.connection_test_parameters.get<bool>(conn_par::RANDOMIZE_INTER_ENDPOINT_PAUSE)
+            : DEFAULT_RANDOMIZE_PAUSE},
+      mean_connection_rate_Hz_ {1000.0 / inter_endpoint_pause_ms_},
       ws_connection_timeout_ms_ {
             app_opt_.connection_test_parameters.includes(conn_par::WS_CONNECTION_TIMEOUT_MS)
             ? static_cast<unsigned int>(
@@ -204,16 +212,18 @@ void connection_test::start()
 {
     auto start_time = std::chrono::system_clock::now();
     LOG_INFO("Requested %1% runs", num_runs_);
-    boost::format run_msg_fmt {"Starting %1%\n"};
+    boost::format run_msg_fmt {"Starting %1%"};
     display_setup();
 
     do {
-        boost::nowide::cout << (run_msg_fmt % current_run_.to_string()).str();
+        boost::nowide::cout << (run_msg_fmt % current_run_.to_string()).str()
+                            << std::endl;
         auto results = perform_current_run();
         results_file_stream_ << results;
         boost::nowide::cout << results;
 
         if (show_stats_) {
+            results_file_stream_ << ",";
             results_file_stream_ << results.conn_stats;
             boost::nowide::cout << results.conn_stats;
         }
@@ -246,8 +256,13 @@ void connection_test::display_setup()
         << "  " << num_runs_ << " runs, (2000 + "
         << inter_run_pause_ms_ << " * num_endpoints) ms pause between each run\n"
         << "  " << inter_endpoint_pause_ms_
-        << " ms pause between each endpoint connection\n"
-        << "  WebSocket connection timeout " << ws_connection_timeout_ms_ << " ms\n"
+        << " ms pause between each set connection";
+
+    if (randomize_pause_)
+        boost::nowide::cout << " (mean value - exp. distribution)";
+
+    boost::nowide::cout
+        << "\n  WebSocket connection timeout " << ws_connection_timeout_ms_ << " ms\n"
         << "  Association timeout " << association_timeout_s_
         << " s; Association Request TTL " << association_request_ttl_s_ << " s\n"
         << "  keep WebSocket connections alive: ";
@@ -289,20 +304,31 @@ void connection_test::display_execution_time(
 // Connection Task
 
 int connect_clients_serially(std::vector<std::shared_ptr<client>> client_ptrs,
-                             const unsigned int inter_endpoint_pause_ms,
+                             std::vector<uint32_t> pauses_ms,
+                             bool randomize,
                              std::shared_ptr<connection_timings_accumulator> timings_acc_ptr,
                              const unsigned int task_id)
 {
+    assert(pauses_ms.size() > 0);
+
+    if (pauses_ms.size() > 1)
+        assert(pauses_ms.size() == client_ptrs.size());
+
     int num_failures {0};
     auto start = std::chrono::system_clock::now();
-    static std::chrono::milliseconds pause {inter_endpoint_pause_ms};
     bool associated;
+    int idx {0};
+
+    // Initialize and use the constant pause value, if we're not randomizing
+    std::chrono::milliseconds pause_ms {pauses_ms[0]};
 
     for (auto &e_p : client_ptrs) {
+        if (randomize)
+            pause_ms = std::chrono::milliseconds(pauses_ms[idx++]);
+
         try {
-            associated = true;
             e_p->connect(1);
-            associated &= e_p->isAssociated();
+            associated = e_p->isAssociated();
 
             if (timings_acc_ptr) {
                 auto ws_timings = e_p->getConnectionTimings();
@@ -318,27 +344,32 @@ int connect_clients_serially(std::vector<std::shared_ptr<client>> client_ptrs,
                 }
             }
 
-            std::this_thread::sleep_for(pause);
+            std::this_thread::sleep_for(pause_ms);
+
+            // Must still be associated after the pause for success
             associated &= e_p->isAssociated();
 
             if (!associated) {
-                LOG_WARNING("Connection Task %1%: client %2% is not associated after %3% ms",
-                            task_id, e_p->configuration.common_name, pause.count());
+                LOG_WARNING("Connection Task %1%: client %2% is not associated "
+                            "after %3% ms",
+                            task_id, e_p->configuration.common_name, pause_ms.count());
                 num_failures++;
             }
         } catch (const PCPClient::connection_error& e) {
             LOG_WARNING("Connection Task %1%: client %2% failed to connect (%3%) "
-                        "- will wait %4% ms", task_id,
-                        e_p->configuration.common_name, e.what(), pause.count());
+                        "- will wait %4% ms",
+                        task_id, e_p->configuration.common_name, e.what(),
+                        pause_ms.count());
             num_failures++;
+            std::this_thread::sleep_for(pause_ms);
         } catch (const std::exception& e) {
             LOG_WARNING("Connection Task %1%: unexpected error for client %2% "
                         "(%3%) - will wait %4% ms",
-                        task_id, e_p->configuration.common_name, e.what(), pause.count());
+                        task_id, e_p->configuration.common_name, e.what(),
+                        pause_ms.count());
             num_failures++;
+            std::this_thread::sleep_for(pause_ms);
         }
-
-        std::this_thread::sleep_for(pause);
     }
 
     for (auto &e_p : client_ptrs) {
@@ -366,6 +397,12 @@ connection_test_result connection_test::perform_current_run()
     if (show_stats_)
         timings_acc_ptr.reset(new connection_timings_accumulator());
 
+    std::unique_ptr<exponential_integers> rng_ptr {
+        randomize_pause_
+        ? new exponential_integers(mean_connection_rate_Hz_, current_run_.rng_seed)
+        : nullptr};
+
+    uint32_t max_tot_pause_ms {0};
     std::vector<std::vector<std::shared_ptr<client>>> all_clients_ptrs {};
     std::vector<std::future<int>> task_futures {};
     client_configuration c_cfg {"0000agent",
@@ -376,7 +413,7 @@ connection_test_result connection_test::perform_current_run()
                                 association_timeout_s_,
                                 association_request_ttl_s_};
 
-    // Spawn concurrent tasks
+    // Spawn concurrent Connection Tasks
 
     auto add_client =
         [&c_cfg] (std::string name,
@@ -412,14 +449,32 @@ connection_test_result connection_test::perform_current_run()
 
     for (auto task_idx = 0; task_idx < current_run_.concurrency; task_idx++) {
         std::vector<std::shared_ptr<client>> task_client_ptrs {};
+        std::vector<uint32_t> pauses_ms {};
+        uint32_t tot_pause_ms {0};
 
-        for (auto idx = 0; idx < current_run_.num_endpoints; idx++)
+        for (auto idx = 0; idx < current_run_.num_endpoints; idx++) {
             add_client(get_name(), task_client_ptrs);
 
-        // Copy client pointers so this thread will be in charge of
-        // destroying them, otherwise we would include the close
-        // handshake times when reporting the overall time to connect
-        all_client_ptrs.emplace_back(task_client_ptrs);
+            if (randomize_pause_) {
+                auto p = (*rng_ptr)();
+                tot_pause_ms += p;
+                pauses_ms.push_back(std::move(p));
+            }
+        }
+
+        if (randomize_pause_) {
+            if (max_tot_pause_ms < tot_pause_ms)
+                max_tot_pause_ms = tot_pause_ms;
+        } else {
+            if (tot_pause_ms == 0) {
+                // Push just one value in case of constant pause;
+                // the Connection Task will figure it out
+                pauses_ms.push_back(inter_endpoint_pause_ms_);
+                tot_pause_ms = current_run_.num_endpoints * inter_endpoint_pause_ms_;
+                max_tot_pause_ms = tot_pause_ms;
+            }
+        }
+
         // Copy client pointers so this thread, or the Keep Alive one,
         // will be in charge of destroying them, otherwise we would
         // include the close handshake times when reporting the
@@ -431,7 +486,8 @@ connection_test_result connection_test::perform_current_run()
                 std::async(std::launch::async,
                            &connect_clients_serially,
                            std::move(task_client_ptrs),
-                           inter_endpoint_pause_ms_,
+                           std::move(pauses_ms),
+                           randomize_pause_,
                            timings_acc_ptr,
                            task_idx));
             LOG_DEBUG("Run #%1% - started Connection Task %2%",
@@ -444,6 +500,15 @@ connection_test_result connection_test::perform_current_run()
             throw fatal_error { "failed to start Connection Task threads" };
         }
     }
+
+    // Display timeout (the total pause may have ben randomized)
+
+    auto timeout_ms = max_tot_pause_ms + current_run_.total_endpoint_timeout_ms;
+    std::chrono::seconds timeout_s {timeout_ms / 1000};
+
+    boost::nowide::cout << "                timeout for establishing all connections "
+                        << normalizeTimeInterval(timeout_ms)
+                        << std::endl;
 
     // Start the Keep Alive Task
 
@@ -469,8 +534,8 @@ connection_test_result connection_test::perform_current_run()
 
     for (std::size_t thread_idx = 0; thread_idx < task_futures.size(); thread_idx++) {
         auto elapsed = std::chrono::system_clock::now() - start;
-        auto timeout = current_run_.timeout_s > elapsed
-                       ? current_run_.timeout_s - elapsed
+        auto timeout = timeout_s > elapsed
+                       ? timeout_s - elapsed
                        : std::chrono::seconds::zero();
 
         if (task_futures[thread_idx].wait_for(timeout) != std::future_status::ready) {
@@ -505,7 +570,7 @@ connection_test_result connection_test::perform_current_run()
 
     if (persist_connections_) {
         // Stop the Keepalive Task
-        assert(current_run_.num_endpoints && all_clients_ptrs.empty());
+        assert(all_clients_ptrs.empty());
         stop_keepalive_task_ = true;
         keepalive_cv_.notify_one();
 
@@ -516,7 +581,9 @@ connection_test_result connection_test::perform_current_run()
             LOG_ERROR("The Keep Alive Task thread is not joinable");
         }
     } else {
-        assert(current_run_.num_endpoints && !all_clients_ptrs.empty());
+        if (current_run_.num_endpoints > 0)
+            assert(!all_clients_ptrs.empty());
+
         close_connections_concurrently(std::move(all_clients_ptrs));
     }
 

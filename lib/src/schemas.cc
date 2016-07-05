@@ -59,17 +59,19 @@ PCPClient::Schema connection_test_parameters()
     PCPClient::Schema schema {configuration_parameters::CONNECTION_TEST_PARAMETERS,
                               C_Type::Json};
 
-    schema.addConstraint(conn_par::NUM_RUNS,                       T_Constraint::Int, true);
-    schema.addConstraint(conn_par::INTER_RUN_PAUSE_MS,             T_Constraint::Int, true);
-    schema.addConstraint(conn_par::NUM_ENDPOINTS,                  T_Constraint::Int, true);
-    schema.addConstraint(conn_par::INTER_ENDPOINT_PAUSE_MS,        T_Constraint::Int, true);
-    schema.addConstraint(conn_par::CONCURRENCY,                    T_Constraint::Int, true);
-    schema.addConstraint(conn_par::ENDPOINTS_INCREMENT,            T_Constraint::Int, true);
-    schema.addConstraint(conn_par::CONCURRENCY_INCREMENT,          T_Constraint::Int, true);
-    schema.addConstraint(conn_par::WS_CONNECTION_TIMEOUT_MS,       T_Constraint::Int, false);
-    schema.addConstraint(conn_par::WS_CONNECTION_CHECK_INTERVAL_S, T_Constraint::Int, false);
-    schema.addConstraint(conn_par::ASSOCIATION_TIMEOUT_S,          T_Constraint::Int, false);
-    schema.addConstraint(conn_par::ASSOCIATION_REQUEST_TTL_S,      T_Constraint::Int, false);
+    schema.addConstraint(conn_par::NUM_RUNS,                       T_Constraint::Int,  true);
+    schema.addConstraint(conn_par::INTER_RUN_PAUSE_MS,             T_Constraint::Int,  true);
+    schema.addConstraint(conn_par::NUM_ENDPOINTS,                  T_Constraint::Int,  true);
+    schema.addConstraint(conn_par::INTER_ENDPOINT_PAUSE_MS,        T_Constraint::Int,  true);
+    schema.addConstraint(conn_par::CONCURRENCY,                    T_Constraint::Int,  true);
+    schema.addConstraint(conn_par::ENDPOINTS_INCREMENT,            T_Constraint::Int,  true);
+    schema.addConstraint(conn_par::CONCURRENCY_INCREMENT,          T_Constraint::Int,  true);
+    schema.addConstraint(conn_par::RANDOMIZE_INTER_ENDPOINT_PAUSE, T_Constraint::Bool, false);
+    schema.addConstraint(conn_par::INTER_ENDPOINT_PAUSE_RNG_SEED,  T_Constraint::Int,  false);
+    schema.addConstraint(conn_par::WS_CONNECTION_TIMEOUT_MS,       T_Constraint::Int,  false);
+    schema.addConstraint(conn_par::WS_CONNECTION_CHECK_INTERVAL_S, T_Constraint::Int,  false);
+    schema.addConstraint(conn_par::ASSOCIATION_TIMEOUT_S,          T_Constraint::Int,  false);
+    schema.addConstraint(conn_par::ASSOCIATION_REQUEST_TTL_S,      T_Constraint::Int,  false);
     schema.addConstraint(conn_par::PERSIST_CONNECTIONS,            T_Constraint::Bool, false);
     schema.addConstraint(conn_par::SHOW_STATS,                     T_Constraint::Bool, false);
 

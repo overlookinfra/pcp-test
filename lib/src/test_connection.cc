@@ -366,7 +366,7 @@ connection_test_result connection_test::perform_current_run()
     if (show_stats_)
         timings_acc_ptr.reset(new connection_timings_accumulator());
 
-    std::vector<std::vector<std::shared_ptr<client>>> all_client_ptrs {};
+    std::vector<std::vector<std::shared_ptr<client>>> all_clients_ptrs {};
     std::vector<std::future<int>> task_futures {};
     client_configuration c_cfg {"0000agent",
                                 CONNECTION_TEST_CLIENT_TYPE,
@@ -420,6 +420,11 @@ connection_test_result connection_test::perform_current_run()
         // destroying them, otherwise we would include the close
         // handshake times when reporting the overall time to connect
         all_client_ptrs.emplace_back(task_client_ptrs);
+        // Copy client pointers so this thread, or the Keep Alive one,
+        // will be in charge of destroying them, otherwise we would
+        // include the close handshake times when reporting the
+        // overall time to connect
+        all_clients_ptrs.emplace_back(task_client_ptrs);
 
         try {
             task_futures.push_back(
@@ -448,7 +453,7 @@ connection_test_result connection_test::perform_current_run()
         try {
             keepalive_thread_ = std::thread {&connection_test::keepalive_task,
                                              this,
-                                             std::move(all_client_ptrs)};
+                                             std::move(all_clients_ptrs)};
         } catch (std::exception& e) {
             boost::nowide::cout
             << "\n" << util::red("   [ERROR]   ")
@@ -485,6 +490,9 @@ connection_test_result connection_test::perform_current_run()
 
     // Report completion and get timing stats
 
+    boost::nowide::cout << "                done - "
+                           "closing connections and retrieving results"
+                        << std::endl;
     results.set_completion();
 
     if (show_stats_)
@@ -497,6 +505,7 @@ connection_test_result connection_test::perform_current_run()
 
     if (persist_connections_) {
         // Stop the Keepalive Task
+        assert(current_run_.num_endpoints && all_clients_ptrs.empty());
         stop_keepalive_task_ = true;
         keepalive_cv_.notify_one();
 
@@ -506,6 +515,9 @@ connection_test_result connection_test::perform_current_run()
         } else {
             LOG_ERROR("The Keep Alive Task thread is not joinable");
         }
+    } else {
+        assert(current_run_.num_endpoints && !all_clients_ptrs.empty());
+        close_connections_concurrently(std::move(all_clients_ptrs));
     }
 
     return results;
@@ -552,6 +564,14 @@ void connection_test::keepalive_task(
         }
     }
 
+    close_connections_concurrently(std::move(all_clients_ptrs));
+}
+
+void connection_test::close_connections_concurrently(
+        std::vector<std::vector<std::shared_ptr<client>>> all_clients_ptrs)
+{
+    LOG_INFO("About to close all connections");
+
     if (all_clients_ptrs.size() > 1) {
         // Trigger client dtors concurrently
         std::vector<std::thread> dtor_threads{};
@@ -559,14 +579,15 @@ void connection_test::keepalive_task(
         try {
             for (auto &t_c_ptrs : all_clients_ptrs) {
                 dtor_threads.push_back(std::thread {
-                    [&t_c_ptrs]() {
-                        try {
-                            for (auto &c : t_c_ptrs)
-                                c.reset();
-                        } catch (const std::exception &e) {
-                            LOG_ERROR("Exception closing connection: %1%", e.what());
-                        }
-                    }});
+                        [&t_c_ptrs]() {
+                            try {
+                                for (auto &c : t_c_ptrs)
+                                    c.reset();
+                            } catch (const std::exception &e) {
+                                LOG_ERROR("Exception closing connection: %1%",
+                                          e.what());
+                            }
+                        }});
             }
         } catch (const std::exception &e) {
             LOG_ERROR("Failed to destroy clients (%1%)", e.what());

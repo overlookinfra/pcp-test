@@ -100,6 +100,8 @@ class connection_test
     connection_test_result perform_current_run();
     void keepalive_task(
             std::vector<std::vector<std::shared_ptr<client>>> all_clients_ptrs);
+    void close_connections_concurrently(
+            std::vector<std::vector<std::shared_ptr<client>>> all_clients_ptrs);
 };
 
 }  // namespace pcp_test

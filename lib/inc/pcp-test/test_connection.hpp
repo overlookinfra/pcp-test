@@ -98,7 +98,8 @@ class connection_test
     void display_setup();
     void display_execution_time(std::chrono::system_clock::time_point start_time);
     connection_test_result perform_current_run();
-    void keepalive_task(std::vector<std::vector<std::shared_ptr<client>>> all_clients_ptrs);
+    void keepalive_task(
+            std::vector<std::vector<std::shared_ptr<client>>> all_clients_ptrs);
 };
 
 }  // namespace pcp_test

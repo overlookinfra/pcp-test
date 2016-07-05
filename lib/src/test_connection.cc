@@ -434,12 +434,14 @@ connection_test_result connection_test::perform_current_run()
         } catch (std::exception& e) {
             boost::nowide::cout
                 << "\n" << util::red("   [ERROR]   ")
-                << "failed to start Connection Task - thread error: " << e.what() << "\n";
+                << "failed to start Connection Task - thread error: "
+                << e.what() << "\n";
             throw fatal_error { "failed to start Connection Task threads" };
         }
     }
 
     // Start the Keep Alive Task
+
     if (persist_connections_) {
         stop_keepalive_task_ = false;
 
@@ -450,7 +452,8 @@ connection_test_result connection_test::perform_current_run()
         } catch (std::exception& e) {
             boost::nowide::cout
             << "\n" << util::red("   [ERROR]   ")
-            << "failed to start Keep Alive Task - thread error: " << e.what() << "\n";
+            << "failed to start Keep Alive Task - thread error: "
+            << e.what() << "\n";
             throw fatal_error { "failed to start Keep Alive Task thread" };
         }
     }
@@ -480,17 +483,20 @@ connection_test_result connection_test::perform_current_run()
         }
     }
 
+    // Report completion and get timing stats
+
     results.set_completion();
 
-    // Get timing stats
     if (show_stats_)
         results.conn_stats = timings_acc_ptr->get_connection_stats();
 
     LOG_INFO("Run #%1% - got Connection Task results; about to close connections",
              current_run_.idx);
 
-    // Stop the Keep-alive Task
+    // Close connections
+
     if (persist_connections_) {
+        // Stop the Keepalive Task
         stop_keepalive_task_ = true;
         keepalive_cv_.notify_one();
 

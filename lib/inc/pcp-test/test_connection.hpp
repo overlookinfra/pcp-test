@@ -30,13 +30,14 @@ struct connection_test_run
   private:
     int endpoints_increment_;
     int concurrency_increment_;
-    std::chrono::seconds endpoint_timeout_s_;
+    int endpoint_timeout_ms_;
 
   public:
     int idx;
     int num_endpoints;
     int concurrency;
-    std::chrono::seconds timeout_s;
+    int rng_seed;
+    int total_endpoint_timeout_ms;
 
     explicit connection_test_run(const application_options& a_o);
 
@@ -81,6 +82,8 @@ class connection_test
     int num_runs_;
     unsigned int inter_run_pause_ms_;
     unsigned int inter_endpoint_pause_ms_;
+    bool randomize_pause_;
+    double mean_connection_rate_Hz_;
     unsigned int ws_connection_timeout_ms_;
     unsigned int ws_connection_check_interval_s_;
     unsigned int association_timeout_s_;
@@ -98,7 +101,10 @@ class connection_test
     void display_setup();
     void display_execution_time(std::chrono::system_clock::time_point start_time);
     connection_test_result perform_current_run();
-    void keepalive_task(std::vector<std::vector<std::shared_ptr<client>>> all_clients_ptrs);
+    void keepalive_task(
+            std::vector<std::vector<std::shared_ptr<client>>> all_clients_ptrs);
+    void close_connections_concurrently(
+            std::vector<std::vector<std::shared_ptr<client>>> all_clients_ptrs);
 };
 
 }  // namespace pcp_test

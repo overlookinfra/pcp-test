@@ -16,14 +16,21 @@ sending WebSocket pings with a given frequency; the ping period is given by the
 `ws-connection-check-interval-s` option, in seconds.
 
 Different sets of clients are connected in a concurrent way, whereas clients of
-a given set are connected one at a time, with a given pause in between
-(`inter-endpoint-pause-ms` in milliseconds).
+a given set are connected one at a time, with a constant pause in between
+(`inter-endpoint-pause-ms` in milliseconds) in case the randomize flag is unset
+(`randomize-inter-endpoint-pause`, defaults to `false`), otherwise pauses will
+be obtained from an RNG that follows an exponential probability distribution
+(mean rate given by the inverse of the specified pause) with a given seed
+(`inter-endpoint-pause-rng-seed`, defaults to 1).
 
 The test is repeated a number of times (`num-runs`); each run may have the
 number of sets or clients per set incremented (respectively, by
 `concurrency-increment` and `endpoints-increment`). The test runner waits for a
 given interval before starting a subsequent run: a fixed interval of 2 s plus
-`inter-run-pause-ms`, in milliseconds, for each established connection.
+`inter-run-pause-ms`, in milliseconds, for each established connection. Note
+that, in case `randomize-inter-endpoint-pause` is set, each random pause is
+taken into account when determining the timeout for establishing the connections
+of a given run (see the [Run Success](#run-success) section below).
 
 WebSocket connections are established with a given timeout for the handshake
 initialization (`ws-connection-timeout-ms` in milliseconds).
@@ -63,6 +70,8 @@ The following are non-mandatory options, with related default values:
 |  `association-request-ttl-s` | integer | 5 s
 |  `persist-connections` | bool | `false`
 |  `show-stats` | bool | `false`
+|  `randomize-inter-endpoint-pause` | bool | `false`
+|  `inter-endpoint-pause-rng-seed` | integer | 1
 
 Once again, ALL mandatory options must be specified in your configuration file,
 in the `connection-test-parameter` object.
@@ -72,7 +81,14 @@ in the `connection-test-parameter` object.
 A given run is considered successful if all PCP connections are correctly
 established within the time interval given by the following formula (in seconds):
 ```
-    num-endpoints * (MAX(1, CEIL(inter-endpoint-pause-ms / 1000)) + association-timeout-s)
+    num-endpoints * (ws-connection-timeout-ms * 1000 + association-timeout-s) + SUM(inter-endpoint-pause)
+```
+In case `randomize-inter-endpoint-pause` is set, the `SUM(inter-endpoint-pause)`
+term of the above formula is given by the sum of the random values that are
+actually used for pausing in between connections; otherwise, if the randomize
+flag is unset, such term is given by:
+```
+    num-endpoints * inter-endpoint-pause-ms * 1000`
 ```
 
 ### Result Metrics
@@ -86,11 +102,12 @@ More precisely, each row of the results CSV file (named
  - the time to establish all the requested connections (in ms).
 
 If `show-stats` is flagged, for each of the following timing metrics, the
-mean value, the standard deviation, and the maximum value will be appended:
-  - time to establish the TCP connection (in ms);
-  - time to perform the WebSocket Open Handshake (in ms);
-  - time to perform the PCP Association (in ms);
-  - duration of the PCP Session (in s).
+mean value, the standard deviation, and the maximum value will be appended,
+for a total of 16 entries for each run:
+  - time to establish the TCP connection (mean value, std dev, and max value in ms);
+  - time to perform the WebSocket Open Handshake (mean value, std dev, and max value in ms);
+  - time to perform the PCP Association (mean value, std dev, and max value in ms);
+  - duration of the PCP Session (mean value, std dev, and max value in s).
 
 An example of output on standard out is:
 ```
@@ -99,35 +116,39 @@ An example of output on standard out is:
     Connection test setup:
       4 concurrent sets (+0 per run) of 40 endpoints (+40 per run)
       2 runs, (2000 + 10 * num_endpoints) ms pause between each run
-      1 ms pause between each endpoint connection
+      100 ms pause between each set connection (mean value - exp. distribution)
       WebSocket connection timeout 1100 ms
       Association timeout 1 s; Association Request TTL 10 s
       keep WebSocket connections alive: yes, by pinging every 10 s
 
-    Starting run 1: 4 concurrent sets of 40 endpoints; timeout for each set 80 s
-      [SUCCESS]  160 successful connections in 5.772 s; timing stats:
-      TCP Connection: ..... mean 1.53778 ms, std dev 0.353192 ms, max 4.342 ms
-      WS Open Handshake: .. mean 120.568 ms, std dev 15.3498 ms, max 178.313 ms
-      PCP Association: .... mean 13.4125 ms, std dev 30.3775 ms, max 242 ms
-      PCP Session: ........ mean 2.65493 s, std dev 1.67712 s, max 5.575 s (160 sessions)
+    Starting run 1: 4 concurrent sets of 40 endpoints
+                    timeout for establishing all connections 1 min 28 s
+                    done - closing connections and retrieving results
+      [SUCCESS]  160 successful connections in 9.582 s; timing stats:
+      TCP Connection: ..... mean 1.54378 ms, std dev 0.387438 ms, max 3.275 ms
+      WS Open Handshake: .. mean 106.032 ms, std dev 6.52274 ms, max 142.639 ms
+      PCP Association: .... mean 8.2625 ms, std dev 1.05764 ms, max 16 ms
+      PCP Session: ........ mean 4.46758 s, std dev 2.59247 s, max 9.397 s (160 sessions)
 
-    Starting run 2: 4 concurrent sets of 80 endpoints; timeout for each set 160 s
-      [SUCCESS]  320 successful connections in 13.728 s; timing stats:
-      TCP Connection: ..... mean 1.67426 ms, std dev 0.693855 ms, max 9.183 ms
-      WS Open Handshake: .. mean 148.065 ms, std dev 33.1022 ms, max 262.927 ms
-      PCP Association: .... mean 12.825 ms, std dev 22.2201 ms, max 239 ms
-      PCP Session: ........ mean 6.65729 s, std dev 3.89234 s, max 13.422 s (320 sessions)
+    Starting run 2: 4 concurrent sets of 80 endpoints
+                    timeout for establishing all connections 2 min 56 s
+                    done - closing connections and retrieving results
+      [SUCCESS]  320 successful connections in 18.72 s; timing stats:
+      TCP Connection: ..... mean 1.56724 ms, std dev 0.379287 ms, max 3.599 ms
+      WS Open Handshake: .. mean 104.493 ms, std dev 2.43615 ms, max 119.505 ms
+      PCP Association: .... mean 8.10625 ms, std dev 0.633412 ms, max 15 ms
+      PCP Session: ........ mean 8.69983 s, std dev 5.12135 s, max 17.89 s (320 sessions)
 
 
-    Connection test: finished in 0 m 49 s
+    Connection test: finished in 0 m 57 s
 
    ~/pcp-test/build/bin ❯
 ```
 
 and the results file contains:
 ```
-    40,4,01.53778,3.53192,4.342,120.568,15.3498,178.313,13.4125,30.3775,242,2.65493,1.67712,5.575
-    80,4,01.67426,6.93855,9.183,148.065,33.1022,262.927,12.825,22.2201,239,6.65729,3.89234,13.422
+    40,4,0,9582,1.54378,0.387438,3.275,106.032,6.52274,142.639,8.2625,1.05764,16,4.46758,2.59247,9.397
+    80,4,0,18072,1.56724,0.379287,3.599,104.493,2.43615,119.505,8.10625,0.633412,15,8.69983,5.12135,17.89
 ```
 
 The related configuration of the `pcp-test.conf` file for the above test is:
@@ -138,19 +159,21 @@ The related configuration of the `pcp-test.conf` file for the above test is:
         "client-loglevel" : "trace",
         "broker-ws-uris"  : ["wss://broker.example.com:8142/pcp"],
          "connection-test-parameters" : {
-            "num-runs"                  : 2,
-            "inter-run-pause-ms"        : 10,
-            "num-endpoints"             : 40,
-            "inter-endpoint-pause-ms"   : 1,
-            "concurrency"               : 4,
-            "endpoints-increment"       : 40,
-            "concurrency-increment"     : 0,
-            "ws-connection-timeout-ms"  : 1100,
-            "ws-connection-check-interval-s": 10,
-            "association-timeout-s"     : 1,
-            "association-request-ttl-s" : 10,
-            "persist-connections"       : true,
-            "show-stats"                : true
+            "num-runs"                       : 2,
+            "inter-run-pause-ms"             : 10,
+            "num-endpoints"                  : 40,
+            "inter-endpoint-pause-ms"        : 1,
+            "randomize-inter-endpoint-pause" : true,
+            "inter-endpoint-pause-rng-seed"  : 42,
+            "concurrency"                    : 4,
+            "endpoints-increment"            : 40,
+            "concurrency-increment"          : 0,
+            "ws-connection-timeout-ms"       : 1100,
+            "ws-connection-check-interval-s" : 10,
+            "association-timeout-s"          : 1,
+            "association-request-ttl-s"      : 10,
+            "persist-connections"            : true,
+            "show-stats"                     : true
         }
     }
 ```

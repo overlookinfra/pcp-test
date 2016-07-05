@@ -51,7 +51,7 @@ std::ostream &operator<<(std::ostream& out, const connection_stats& c_s)
 std::ofstream& operator<<(boost::nowide::ofstream& out, const connection_stats& c_s)
 {
     out << c_s.tcp_us.mean / 1000 << ","
-        << c_s.tcp_us.stddev / 100 << ","
+        << c_s.tcp_us.stddev / 1000 << ","
         << static_cast<float>(c_s.tcp_us.max) / 1000 << ","
         << c_s.ws_open_handshake_us.mean / 1000 << ","
         << c_s.ws_open_handshake_us.stddev / 1000 << ","

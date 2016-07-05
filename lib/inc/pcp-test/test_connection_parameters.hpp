@@ -17,6 +17,8 @@ extern const std::string INTER_ENDPOINT_PAUSE_MS;
 extern const std::string CONCURRENCY;
 extern const std::string ENDPOINTS_INCREMENT;
 extern const std::string CONCURRENCY_INCREMENT;
+extern const std::string RANDOMIZE_INTER_ENDPOINT_PAUSE;
+extern const std::string INTER_ENDPOINT_PAUSE_RNG_SEED;
 extern const std::string WS_CONNECTION_TIMEOUT_MS;
 extern const std::string WS_CONNECTION_CHECK_INTERVAL_S;
 extern const std::string ASSOCIATION_TIMEOUT_S;

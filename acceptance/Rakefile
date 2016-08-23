@@ -3,5 +3,5 @@ require 'rake/clean'
 desc 'Run acceptance tests'
 task :acceptance do
   # TODO: create your real acceptance tests and update this
-  system("beaker --tests tests/fake.rb")
+  system("beaker --hosts config/nodes/el7-vmpooler.cfg --tests tests --options-file config/options.rb --helper lib/helper.rb")
 end

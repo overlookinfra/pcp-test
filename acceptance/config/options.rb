@@ -6,4 +6,7 @@
     'setup/common/030_UnpackTestCertificates.rb',
     'setup/common/040_InstallPCPBroker.rb',
   ],
+  :ssh => {
+    :keys => ["~/.ssh/id_rsa-acceptance"],
+  },
 }

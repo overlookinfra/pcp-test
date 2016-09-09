@@ -1,4 +1,5 @@
 {
+  :type => 'foss',
   :pre_suite => [
     'setup/common/010_InstallDependencies.rb',
     'setup/common/020_InstallPCPTest.rb',

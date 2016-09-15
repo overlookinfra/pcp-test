@@ -1,7 +1,25 @@
 require 'rake/clean'
+require 'rototiller'
 
 desc 'Run acceptance tests'
-task :acceptance do
-  # TODO: create your real acceptance tests and update this
-  system("beaker --hosts config/nodes/el7-vmpooler.cfg --tests tests --options-file config/options.rb --helper lib/helper.rb")
+rototiller_task :acceptance do |task|
+  task.add_env({:name => 'SUITE_COMMIT',     :required => true, :message => 'The SHA of the pcp-test build to test'})
+  task.add_env({:name => 'PUPPET_AGENT_SHA', :required => true, :message => 'The SHA of the puppet-agent package used to build pcp-test'})
+  task.add_env({:name => 'TEST_TARGET',      :required => true, :message => 'The platform to test on. Assumed to be a standard value from Vanagon CI e.g. ubuntu1604-64a'})
+
+  test_target = ENV['TEST_TARGET']
+  # A standard vanagon CI TEST_TARGET will be of the form ubuntu1604-64a
+  # Strip the a off the end and add pcp-test role, and a redhat7 host for pcp-broker
+  # Note: QENG-4386 - the --disable-default-role option can't be set and hosts will have a redundant 'a' role
+  if (test_target.end_with?('a')) then
+    test_target = test_target.slice(0, test_target.length - 1)
+  end
+  test_target = "#{test_target}pcp_test.-redhat7-64pcp_broker."
+
+  task.add_flag({:name => '--hosts',        :message => 'The host config for beaker to use',          :default => test_target})
+  task.add_flag({:name => '--tests',        :message => 'The path to test(s) that beaker should run', :default => 'tests'})
+  task.add_flag({:name => '--options-file', :message => 'Options file that beaker should use',        :default => 'config/options.rb'})
+  task.add_flag({:name => '--helper',       :message => 'Beaker\'s helper lib',                       :default => 'lib/helper.rb'})
+
+  task.add_command({:name => 'beaker'})
 end
